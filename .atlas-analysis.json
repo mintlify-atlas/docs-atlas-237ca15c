@@ -1,0 +1,252 @@
+{
+  "projectType": "api-service",
+  "projectName": "FWCloud API",
+  "projectDescription": "REST API for managing firewall policies, VPN configurations, and network security infrastructure.",
+  "theme": "aspen",
+  "primaryColor": "#1e3a8a",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core-concepts/architecture",
+              "core-concepts/fwclouds",
+              "core-concepts/firewalls",
+              "core-concepts/policies",
+              "core-concepts/vpn-types"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/firewall-management",
+              "guides/policy-compilation",
+              "guides/vpn-configuration",
+              "guides/backups",
+              "guides/ai-assistant"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/overview",
+              "api-reference/errors",
+              "api-reference/rate-limits"
+            ]
+          },
+          {
+            "group": "FWCloud Management",
+            "pages": [
+              "api-reference/fwclouds/create",
+              "api-reference/fwclouds/update",
+              "api-reference/fwclouds/export",
+              "api-reference/fwclouds/import"
+            ]
+          },
+          {
+            "group": "Firewalls",
+            "pages": [
+              "api-reference/firewalls/communication",
+              "api-reference/firewalls/plugins",
+              "api-reference/firewalls/compile"
+            ]
+          },
+          {
+            "group": "Policy Rules",
+            "pages": [
+              "api-reference/policy-rules/read",
+              "api-reference/policy-rules/download"
+            ]
+          },
+          {
+            "group": "VPN - OpenVPN",
+            "pages": [
+              "api-reference/vpn/openvpn/installer",
+              "api-reference/vpn/openvpn/history",
+              "api-reference/vpn/openvpn/archives"
+            ]
+          },
+          {
+            "group": "VPN - WireGuard",
+            "pages": [
+              "api-reference/vpn/wireguard/manage",
+              "api-reference/vpn/wireguard/clients",
+              "api-reference/vpn/wireguard/install"
+            ]
+          },
+          {
+            "group": "VPN - IPsec",
+            "pages": [
+              "api-reference/vpn/ipsec/manage",
+              "api-reference/vpn/ipsec/clients",
+              "api-reference/vpn/ipsec/install"
+            ]
+          },
+          {
+            "group": "Routing",
+            "pages": [
+              "api-reference/routing/tables",
+              "api-reference/routing/routes",
+              "api-reference/routing/rules"
+            ]
+          },
+          {
+            "group": "System Services",
+            "pages": [
+              "api-reference/system/dhcp",
+              "api-reference/system/keepalived",
+              "api-reference/system/haproxy",
+              "api-reference/system/systemctl"
+            ]
+          },
+          {
+            "group": "Certificates",
+            "pages": [
+              "api-reference/certificates/ca",
+              "api-reference/certificates/crt"
+            ]
+          },
+          {
+            "group": "Backups",
+            "pages": [
+              "api-reference/backups/create",
+              "api-reference/backups/restore",
+              "api-reference/backups/config"
+            ]
+          },
+          {
+            "group": "Snapshots",
+            "pages": [
+              "api-reference/snapshots/create",
+              "api-reference/snapshots/restore"
+            ]
+          },
+          {
+            "group": "AI Assistant",
+            "pages": [
+              "api-reference/ai/check-policy",
+              "api-reference/ai/check-rules",
+              "api-reference/ai/config"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "api-reference/auth/tfa"
+            ]
+          },
+          {
+            "group": "Updates",
+            "pages": [
+              "api-reference/updates/check",
+              "api-reference/updates/install"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/overview",
+              "cli/migration",
+              "cli/backup",
+              "cli/keys",
+              "cli/routes"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "groups": [
+          {
+            "group": "Deployment",
+            "pages": [
+              "advanced/installation",
+              "advanced/configuration",
+              "advanced/database",
+              "advanced/docker"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "advanced/contributing",
+              "advanced/testing",
+              "advanced/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Firewall policy management with compilation support for IPTables, NFTables, and VyOS",
+    "Multi-VPN support (OpenVPN, WireGuard, IPsec/strongSwan)",
+    "Policy rule compilation and deployment to remote firewalls",
+    "Routing table and rule management",
+    "System service configuration (DHCP, Keepalived, HAProxy)",
+    "Certificate authority and certificate management",
+    "Automated backup and restore with scheduled backups",
+    "Snapshot management for configuration versioning",
+    "AI-powered policy analysis and validation",
+    "Two-factor authentication support",
+    "Real-time communication via WebSockets",
+    "Import/export functionality for iptables-save format",
+    "Exclusive write access control for multi-user environments",
+    "Plugin system for firewall extensions"
+  ],
+  "publicApiSurface": [
+    "POST /fwclouds - Create FWCloud",
+    "PUT /fwclouds/:fwcloud - Update FWCloud",
+    "POST /fwclouds/:fwcloud/firewalls/communication/ping - Ping firewall",
+    "POST /fwclouds/:fwcloud/firewalls/communication/info - Get firewall info",
+    "GET /fwclouds/:fwcloud/firewalls/:firewall/policyRules/read - Read policy rules",
+    "POST /fwclouds/:fwcloud/firewalls/:firewall/policyRules/download - Compile and download policy",
+    "POST /fwclouds/:fwcloud/firewalls/:firewall/openvpns/:openvpn/installer - Install OpenVPN",
+    "POST /fwclouds/:fwcloud/firewalls/:firewall/wireguards/:wireguard/installer - Install WireGuard",
+    "POST /fwclouds/:fwcloud/firewalls/:firewall/ipsecs/:ipsec/installer - Install IPsec",
+    "POST /vpn/wireguard - Create WireGuard VPN",
+    "POST /vpn/ipsec - Create IPsec VPN",
+    "GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables - List routing tables",
+    "POST /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes - Create route",
+    "POST /fwclouds/:fwcloud/firewalls/:firewall/AIassistant - Check policy with AI",
+    "GET /backups - List backups",
+    "POST /backups - Create backup",
+    "POST /backups/:backup/restore - Restore backup",
+    "GET /snapshots - List snapshots",
+    "POST /snapshots - Create snapshot",
+    "POST /snapshots/:snapshot/restore - Restore snapshot",
+    "POST /profile/tfa/setup - Setup two-factor authentication",
+    "POST /profile/tfa/verify - Verify TFA token",
+    "GET /aiassistant - Get AI assistant configuration",
+    "PUT /aiassistant - Update AI assistant configuration",
+    "GET /version - Get API version",
+    "GET /updates - Check for updates",
+    "PUT /updates/api - Update API",
+    "PUT /iptables-save/import - Import iptables-save format",
+    "PUT /iptables-save/export - Export to iptables-save format"
+  ]
+}
