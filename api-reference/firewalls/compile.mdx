@@ -1,0 +1,307 @@
+---
+title: 'Policy Compilation'
+description: 'Compile firewall rules and system configurations'
+---
+
+Policy compilation endpoints transform firewall rules and system configurations into executable scripts ready for deployment.
+
+## Compile Routing Rules
+
+`GET /fwclouds/:fwcloud/firewalls/:firewall/routingRules/compile`
+
+Compiles routing rules for a specific firewall into executable routing table commands.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  The unique identifier of the firewall
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="rules" type="array">
+  Optional array of specific routing rule IDs to compile. If not provided, all rules are compiled.
+</ParamField>
+
+### Response
+
+<ResponseField name="script" type="string">
+  Compiled shell script with routing commands
+</ResponseField>
+
+<ResponseField name="rules" type="array">
+  Array of compiled rule objects
+</ResponseField>
+
+### Example Request
+
+```bash cURL
+curl -X GET "https://api.fwcloud.net/fwclouds/1/firewalls/5/routingRules/compile?rules=10&rules=11" \
+  -H "Authorization: Bearer YOUR_API_TOKEN"
+```
+
+### Example Response
+
+```json
+{
+  "script": "#!/bin/bash\n# Routing rules compilation\nip route add 10.0.1.0/24 via 192.168.1.1 dev eth0\nip route add 10.0.2.0/24 via 192.168.1.2 dev eth1\n",
+  "rules": [
+    {
+      "id": 10,
+      "command": "ip route add 10.0.1.0/24 via 192.168.1.1 dev eth0",
+      "comment": "Route to internal network"
+    },
+    {
+      "id": 11,
+      "command": "ip route add 10.0.2.0/24 via 192.168.1.2 dev eth1",
+      "comment": "Route to DMZ"
+    }
+  ]
+}
+```
+
+---
+
+## Compile DHCP Rules
+
+`GET /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/compile`
+
+Compiles DHCP rules into ISC DHCP server configuration.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  The unique identifier of the firewall
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="rules" type="array">
+  Optional array of specific DHCP rule IDs to compile
+</ParamField>
+
+### Response
+
+<ResponseField name="config" type="string">
+  Compiled DHCP server configuration
+</ResponseField>
+
+<ResponseField name="rules" type="array">
+  Array of compiled DHCP rules
+</ResponseField>
+
+### Example Request
+
+```bash cURL
+curl -X GET https://api.fwcloud.net/fwclouds/1/firewalls/5/system/dhcpRules/compile \
+  -H "Authorization: Bearer YOUR_API_TOKEN"
+```
+
+### Example Response
+
+```json
+{
+  "config": "# DHCP Server Configuration\nsubnet 192.168.1.0 netmask 255.255.255.0 {\n  range 192.168.1.100 192.168.1.200;\n  option routers 192.168.1.1;\n  option domain-name-servers 8.8.8.8, 8.8.4.4;\n}\n",
+  "rules": [
+    {
+      "id": 1,
+      "subnet": "192.168.1.0/24",
+      "range": "192.168.1.100-192.168.1.200",
+      "gateway": "192.168.1.1"
+    }
+  ]
+}
+```
+
+---
+
+## Compile HAProxy Rules
+
+`GET /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/compile`
+
+Compiles HAProxy load balancer rules into HAProxy configuration.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  The unique identifier of the firewall
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="rules" type="array">
+  Optional array of specific HAProxy rule IDs to compile
+</ParamField>
+
+### Response
+
+<ResponseField name="config" type="string">
+  Compiled HAProxy configuration
+</ResponseField>
+
+<ResponseField name="rules" type="array">
+  Array of compiled HAProxy rules
+</ResponseField>
+
+### Example Request
+
+```bash cURL
+curl -X GET https://api.fwcloud.net/fwclouds/1/firewalls/5/system/haproxyRules/compile \
+  -H "Authorization: Bearer YOUR_API_TOKEN"
+```
+
+### Example Response
+
+```json
+{
+  "config": "global\n  log /dev/log local0\n  maxconn 4096\n\nfrontend http-in\n  bind *:80\n  default_backend web-servers\n\nbackend web-servers\n  balance roundrobin\n  server web1 192.168.1.10:80 check\n  server web2 192.168.1.11:80 check\n",
+  "rules": [
+    {
+      "id": 1,
+      "frontend": "http-in",
+      "backend": "web-servers",
+      "servers": ["192.168.1.10", "192.168.1.11"]
+    }
+  ]
+}
+```
+
+---
+
+## Compile Keepalived Rules
+
+`GET /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/compile`
+
+Compiles Keepalived high availability rules into Keepalived configuration.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  The unique identifier of the firewall
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="rules" type="array">
+  Optional array of specific Keepalived rule IDs to compile
+</ParamField>
+
+### Response
+
+<ResponseField name="config" type="string">
+  Compiled Keepalived configuration
+</ResponseField>
+
+<ResponseField name="rules" type="array">
+  Array of compiled Keepalived rules
+</ResponseField>
+
+### Example Request
+
+```bash cURL
+curl -X GET https://api.fwcloud.net/fwclouds/1/firewalls/5/system/keepalivedRules/compile \
+  -H "Authorization: Bearer YOUR_API_TOKEN"
+```
+
+### Example Response
+
+```json
+{
+  "config": "vrrp_instance VI_1 {\n  state MASTER\n  interface eth0\n  virtual_router_id 51\n  priority 100\n  virtual_ipaddress {\n    192.168.1.254/24\n  }\n}\n",
+  "rules": [
+    {
+      "id": 1,
+      "instance": "VI_1",
+      "state": "MASTER",
+      "vip": "192.168.1.254"
+    }
+  ]
+}
+```
+
+---
+
+## Compile Individual Route
+
+`GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/:route/compile`
+
+Compiles a single routing table route.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  The unique identifier of the firewall
+</ParamField>
+
+<ParamField path="routingTable" type="number" required>
+  The unique identifier of the routing table
+</ParamField>
+
+<ParamField path="route" type="number" required>
+  The unique identifier of the route to compile
+</ParamField>
+
+### Response
+
+<ResponseField name="command" type="string">
+  Compiled route command
+</ResponseField>
+
+### Example Request
+
+```bash cURL
+curl -X GET https://api.fwcloud.net/fwclouds/1/firewalls/5/routingTables/1/routes/10/compile \
+  -H "Authorization: Bearer YOUR_API_TOKEN"
+```
+
+### Example Response
+
+```json
+{
+  "command": "ip route add 10.0.1.0/24 via 192.168.1.1 dev eth0 table main"
+}
+```
+
+---
+
+## Common Errors
+
+<ResponseField name="404" type="error">
+  Not Found - FWCloud, firewall, or rules not found
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  Forbidden - Insufficient permissions to compile rules
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Bad Request - Invalid rule configuration
+</ResponseField>
+
+## Compilation Notes
+
+- Compilation validates rules before generating configuration
+- Rules are compiled in the order they are defined
+- Firewall-specific rules are filtered based on the target firewall
+- Generated scripts include comments for documentation
+- Compilation does not apply changes to the firewall (use install endpoints for that)

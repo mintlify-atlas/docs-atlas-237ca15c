@@ -1,0 +1,211 @@
+---
+title: 'Keepalived Service'
+description: 'Manage Keepalived high-availability rules and VRRP configuration'
+---
+
+## List Keepalived Rules
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves all Keepalived rules for a firewall.
+
+## Get Grid View
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/grid
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/grid" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves Keepalived rules in grid format for UI display.
+
+## Get Keepalived Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/:keepalived
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Create Keepalived Rule
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "interface": "eth0",
+    "virtual_router_id": 51,
+    "priority": 100,
+    "virtual_ips": ["192.168.1.100/24"],
+    "state": "MASTER",
+    "authentication_password": "secret123",
+    "comment": "VRRP instance for HA",
+    "active": true
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `interface` (string, optional) - Network interface for VRRP
+- `virtual_router_id` (integer, optional) - VRRP instance ID (1-255)
+- `priority` (integer, optional) - VRRP priority (1-254)
+- `virtual_ips` (array, optional) - Virtual IP addresses
+- `state` (string, optional) - Initial state: "MASTER" or "BACKUP"
+- `authentication_password` (string, optional) - VRRP authentication password
+- `comment` (string, optional) - Description
+- `active` (boolean, optional) - Whether rule is enabled
+- `group` (integer, optional) - Keepalived group ID
+
+## Update Keepalived Rule
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/:keepalived
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "priority": 150,
+    "virtual_ips": ["192.168.1.100/24", "192.168.1.101/24"]
+  }'
+```
+</CodeGroup>
+
+## Copy Rules
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/copy
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/copy" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": [1, 2],
+    "to": 5,
+    "offset": "below"
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `rules` (array, required) - Rule IDs to copy
+- `to` (integer, required) - Target rule ID
+- `offset` (string, required) - Position: "above" or "below"
+
+## Move Rules
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/move
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/move" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": [1, 2],
+    "to": 5,
+    "offset": "above"
+  }'
+```
+</CodeGroup>
+
+## Move From
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/moveFrom
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/moveFrom" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+## Bulk Update
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/bulkUpdate?rules[]=1&rules[]=2
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/bulkUpdate?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "active": false
+  }'
+```
+</CodeGroup>
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to update
+
+## Compile Keepalived Configuration
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles all Keepalived rules into keepalived.conf format.
+
+## Compile Single Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/:keepalived/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/1/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Install Keepalived Configuration
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/install
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/install" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles and installs Keepalived configuration to the firewall.
+
+This endpoint:
+1. Compiles all Keepalived rules into keepalived.conf
+2. Uploads the configuration to `/etc/keepalived/keepalived.conf`
+3. Validates the configuration
+4. Emits progress events via WebSocket
+
+**Response Events (WebSocket)**
+```json
+{
+  "status": "start",
+  "message": "Installing Keepalived configuration"
+}
+```
+
+## Delete Keepalived Rule
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/:keepalived
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Bulk Remove
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/system/keepalivedRules/bulkRemove?rules[]=1&rules[]=2
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/system/keepalivedRules/bulkRemove?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to delete

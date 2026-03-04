@@ -1,0 +1,305 @@
+---
+title: "IPsec Client Management"
+api: "GET /api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/clients"
+description: "Manage IPsec client configurations and connection-specific options"
+---
+
+Manage IPsec VPN clients (connections) associated with a strongSwan server configuration, including client listing and connection-specific option management.
+
+## List IPsec Clients
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/clients">
+  Retrieves all client configurations for an IPsec server
+</api>
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+<ParamField path="ipsec" type="number" required>
+  IPsec server configuration ID
+</ParamField>
+
+### Response
+
+<ResponseField name="clients" type="array">
+  Array of client configurations
+  <Expandable title="Client object properties">
+    <ResponseField name="id" type="number">
+      Client configuration ID
+    </ResponseField>
+    <ResponseField name="cn" type="string">
+      Client certificate common name
+    </ResponseField>
+    <ResponseField name="ipsec" type="number">
+      Parent server ID
+    </ResponseField>
+    <ResponseField name="crt" type="number">
+      Certificate ID
+    </ResponseField>
+    <ResponseField name="rightsubnet" type="string">
+      Remote subnet accessible through this connection
+    </ResponseField>
+    <ResponseField name="rightsourceip" type="string">
+      Virtual IP assigned to this client
+    </ResponseField>
+    <ResponseField name="status" type="number">
+      Configuration status flags
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      Creation timestamp
+    </ResponseField>
+    <ResponseField name="updated_at" type="string">
+      Last update timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+[
+  {
+    "id": 59,
+    "cn": "remote-office-001",
+    "ipsec": 58,
+    "crt": 25,
+    "rightsubnet": "192.168.10.0/24",
+    "rightsourceip": "10.10.10.2",
+    "status": 0,
+    "created_at": "2026-03-04T10:00:00.000Z",
+    "updated_at": "2026-03-04T10:00:00.000Z"
+  },
+  {
+    "id": 60,
+    "cn": "mobile-user-002",
+    "ipsec": 58,
+    "crt": 26,
+    "rightsubnet": "192.168.20.0/24",
+    "rightsourceip": "10.10.10.3",
+    "status": 1,
+    "created_at": "2026-03-04T11:30:00.000Z",
+    "updated_at": "2026-03-04T15:45:00.000Z"
+  }
+]
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X GET \
+  https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/ipsecs/58/clients
+```
+</ResponseExample>
+
+---
+
+## Get Client Connection Options
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/clients/options">
+  Retrieves connection-specific options for an IPsec client
+</api>
+
+### Query Parameters
+
+<ParamField query="ipsec" type="number" required>
+  Server configuration ID
+</ParamField>
+
+<ParamField query="ipsec_cli" type="number" required>
+  Client configuration ID
+</ParamField>
+
+### Response
+
+<ResponseField name="rightsubnet" type="string">
+  Remote subnet(s) accessible via this connection
+</ResponseField>
+
+<ResponseField name="auto" type="string">
+  Connection startup behavior (add, start, route, ignore)
+</ResponseField>
+
+<ResponseField name="rightsourceip" type="string">
+  Virtual IP address assigned to the client
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "rightsubnet": "192.168.10.0/24,192.168.20.0/24",
+  "auto": "start",
+  "rightsourceip": "10.10.10.2"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X GET \
+  'https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/ipsecs/58/clients/options?ipsec=58&ipsec_cli=59'
+```
+</ResponseExample>
+
+---
+
+## Update Client Connection Options
+
+<api method="PUT" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/clients/options">
+  Updates connection-specific options for an IPsec client
+</api>
+
+### Body Parameters
+
+<ParamField body="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField body="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+<ParamField body="ipsec" type="number" required>
+  Server configuration ID
+</ParamField>
+
+<ParamField body="ipsec_cli" type="number" required>
+  Client configuration ID
+</ParamField>
+
+<ParamField body="options" type="array" required>
+  Array of connection option objects with scope 8 (client-specific)
+  <Expandable title="Option properties">
+    <ParamField body="name" type="string" required>
+      Option name. Common options:
+      - `rightsubnet`: Remote network(s) accessible
+      - `auto`: Connection startup (add/start/route/ignore)
+      - `rightsourceip`: Virtual IP assignment
+      - `<<disable>>`: Special flag to trigger service restart
+    </ParamField>
+    <ParamField body="arg" type="string">
+      Option value (omit for `<<disable>>`)
+    </ParamField>
+    <ParamField body="comment" type="string">
+      Optional comment
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+Returns HTTP 204 (No Content) on success.
+
+<ResponseExample>
+```bash cURL
+curl -X PUT \
+  https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/ipsecs/58/clients/options \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 5,
+    "ipsec": 58,
+    "ipsec_cli": 59,
+    "options": [
+      {
+        "name": "rightsubnet",
+        "arg": "192.168.10.0/24,192.168.30.0/24"
+      },
+      {
+        "name": "auto",
+        "arg": "start"
+      }
+    ]
+  }'
+```
+</ResponseExample>
+
+### Special Options
+
+#### Connection Restart
+
+To force a strongSwan service restart after updating options, include the special `<<disable>>` option:
+
+```json
+{
+  "options": [
+    {"name": "rightsubnet", "arg": "192.168.10.0/24"},
+    {"name": "<<disable>>"}
+  ]
+}
+```
+
+This triggers `systemctl restart strongswan-starter` on the firewall.
+
+---
+
+## Notes
+
+- Client connection options are stored with scope 8 (client-specific)
+- The `rightsourceip` option is typically set automatically during client creation
+- Changes to client options don't mark the server as modified (no reinstallation needed)
+- The `<<disable>>` option forces a service restart to apply changes immediately
+- Multiple subnets can be specified in `rightsubnet` using comma separation
+
+## IPsec Option Scopes
+
+- **Scope 6**: Server-level options (apply to all connections)
+- **Scope 7**: Peer/connection template options
+- **Scope 8**: Client-specific connection options (managed by these endpoints)
+
+## Connection Startup Modes
+
+- **add**: Load connection but don't start automatically
+- **start**: Establish connection immediately and keep it up
+- **route**: Install route, establish on traffic
+- **ignore**: Load but don't use
+
+## Workflow
+
+1. Create IPsec server configuration
+2. Create client configurations (one per remote site/user)
+3. Configure client-specific connection options:
+   - `rightsubnet`: Define which remote networks are accessible
+   - `auto`: Control when the connection establishes
+   - Additional options as needed
+4. Install server configuration (includes all client connections)
+5. Test connectivity from clients
+6. Update client options as network topology changes
+
+## Common Use Cases
+
+### Site-to-Site VPN
+```json
+{
+  "options": [
+    {"name": "rightsubnet", "arg": "192.168.1.0/24"},
+    {"name": "auto", "arg": "start"}
+  ]
+}
+```
+
+### Road Warrior (Mobile Client)
+```json
+{
+  "options": [
+    {"name": "rightsubnet", "arg": "0.0.0.0/0"},
+    {"name": "auto", "arg": "add"},
+    {"name": "rightsourceip", "arg": "10.10.10.5"}
+  ]
+}
+```
+
+### Multi-Subnet Access
+```json
+{
+  "options": [
+    {"name": "rightsubnet", "arg": "192.168.1.0/24,192.168.2.0/24,10.0.0.0/16"},
+    {"name": "auto", "arg": "route"}
+  ]
+}
+```

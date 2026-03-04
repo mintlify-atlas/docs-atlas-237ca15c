@@ -1,0 +1,577 @@
+---
+title: AI Assistant Integration
+description: Configure and use OpenAI integration for policy analysis and assistance
+---
+
+## Overview
+
+FWCloud API includes built-in AI assistant capabilities powered by OpenAI's GPT models. The AI assistant can:
+
+- Analyze firewall policy scripts for security issues
+- Review compiled firewall rules
+- Explain complex policy configurations
+- Suggest improvements and optimizations
+- Help troubleshoot rule conflicts
+
+<Info>
+  The AI assistant requires an OpenAI API key and sends policy data to OpenAI's servers. Ensure this complies with your security and compliance requirements.
+</Info>
+
+## Prerequisites
+
+<Steps>
+  <Step title="OpenAI API key">
+    Obtain an API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+    
+    - Sign up or log in to OpenAI
+    - Navigate to API Keys section
+    - Create a new secret key
+    - Copy the key (it won't be shown again)
+  </Step>
+
+  <Step title="Billing setup">
+    Configure billing in your OpenAI account:
+    
+    - Add payment method
+    - Set usage limits to control costs
+    - Monitor usage through OpenAI dashboard
+  </Step>
+
+  <Step title="Model selection">
+    Choose an appropriate GPT model:
+    
+    - **gpt-4**: Most capable, higher cost
+    - **gpt-4-turbo**: Balanced performance and cost
+    - **gpt-3.5-turbo**: Faster, lower cost
+    
+    Model availability and pricing: [OpenAI Pricing](https://openai.com/pricing)
+  </Step>
+</Steps>
+
+## Configuration
+
+### Configure AI Assistant via API
+
+<Steps>
+  <Step title="Set OpenAI credentials">
+    Configure the AI assistant with your API key:
+    
+    ```bash
+    curl -X PUT https://api.fwcloud.net/ai-assistant/config \
+      -H "Authorization: Bearer <token>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "ai": "openai",
+        "model": "gpt-4-turbo",
+        "apiKey": "sk-proj-..."
+      }'
+    ```
+    
+    <Warning>
+      The API key is encrypted before storage in the database using AES-256 encryption.
+    </Warning>
+  </Step>
+
+  <Step title="Verify configuration">
+    Retrieve current configuration:
+    
+    ```bash
+    curl https://api.fwcloud.net/ai-assistant/config \
+      -H "Authorization: Bearer <token>"
+    ```
+    
+    Response:
+    ```json
+    [
+      {
+        "ai": "openai",
+        "model": "gpt-4-turbo",
+        "apiKey": "-----BEGIN PGP MESSAGE-----..."
+      }
+    ]
+    ```
+    
+    Note: The API key is encrypted when returned.
+  </Step>
+</Steps>
+
+### Available AI Providers and Models
+
+<Tabs>
+  <Tab title="OpenAI">
+    **Provider**: `openai`
+    
+    **Available Models**:
+    - `gpt-4` - Most capable model, best for complex analysis
+    - `gpt-4-turbo` - Faster GPT-4 with lower cost
+    - `gpt-3.5-turbo` - Fast and affordable for basic queries
+    
+    **Configuration**:
+    ```json
+    {
+      "ai": "openai",
+      "model": "gpt-4-turbo",
+      "apiKey": "sk-proj-your-key-here"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Future Providers">
+    Future versions may support:
+    - Azure OpenAI Service
+    - Anthropic Claude
+    - Local LLM models (Ollama)
+    - Google Vertex AI
+    
+    Check documentation for current provider support.
+  </Tab>
+</Tabs>
+
+## Using the AI Assistant
+
+### Analyze Policy Scripts
+
+Send a complete firewall policy script for analysis:
+
+```bash
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ai-assistant/policy-script \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Analyze this firewall policy script for security issues and suggest improvements."
+  }'
+```
+
+**How it works**:
+1. Retrieves the compiled policy script from `/data/policy/{fwcloud_id}/{firewall_id}/firewall.sh`
+2. Combines your prompt with the policy script
+3. Sends to OpenAI API
+4. Returns formatted analysis
+
+Response:
+```json
+{
+  "response": "Analysis of your firewall policy:\n\n1. Security Issues Found:\n   - Rule 15 allows unrestricted SSH access from 0.0.0.0/0\n   - Missing rate limiting on port 22\n   - Default DROP policy not set for FORWARD chain\n\n2. Recommendations:\n   - Restrict SSH access to specific management IPs\n   - Add connection rate limiting (--limit 3/min)\n   - Set explicit default policies for all chains\n   - Consider using port knocking for SSH\n\n3. Performance Optimizations:\n   - Move frequently matched rules to top\n   - Combine similar rules using IP groups\n   - Enable connection tracking for stateful filtering\n\nWould you like me to provide specific rule examples for any of these improvements?"
+}
+```
+
+### Analyze Compiled Rules
+
+Review specific compiled firewall rules:
+
+```bash
+curl -X POST "https://api.fwcloud.net/fwclouds/1/firewalls/1/ai-assistant/compiled-rules?rules[]=15&rules[]=23" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Explain what these rules do and identify any potential conflicts."
+  }'
+```
+
+**How it works**:
+1. Compiles specified policy rules (IDs 15 and 23)
+2. Generates iptables/nftables/VyOS commands
+3. Combines with your prompt
+4. Sends to OpenAI for analysis
+
+Response:
+```json
+{
+  "response": "Rule Analysis:\n\nRule 15:\n- Allows incoming SSH (port 22) from 192.168.1.0/24\n- Uses INPUT chain\n- Action: ACCEPT\n- Protocol: TCP\n\nRule 23:\n- Blocks all SSH traffic from any source\n- Uses INPUT chain\n- Action: DROP\n- Protocol: TCP\n\nPotential Conflict:\nRule 23 may block connections allowed by Rule 15. Check rule order:\n- If Rule 15 is evaluated first: SSH from 192.168.1.0/24 will work\n- If Rule 23 is evaluated first: All SSH will be blocked\n\nRecommendation:\nMove Rule 15 before Rule 23 in the policy, or make Rule 23 more specific to avoid blocking legitimate SSH access."
+}
+```
+
+### Example Prompts
+
+<AccordionGroup>
+  <Accordion title="Security Analysis">
+    ```json
+    {
+      "prompt": "Review this policy for common security vulnerabilities, focusing on: 1) Overly permissive rules, 2) Missing egress filtering, 3) Dangerous default policies, 4) Potential for privilege escalation."
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Compliance Check">
+    ```json
+    {
+      "prompt": "Evaluate this firewall configuration against PCI-DSS requirements. Specifically check for: 1) Restrictions on inbound traffic, 2) Outbound connection controls, 3) Logging requirements, 4) DMZ segmentation."
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Performance Optimization">
+    ```json
+    {
+      "prompt": "Suggest performance optimizations for this policy. Consider: 1) Rule ordering, 2) Use of IP groups, 3) Connection tracking, 4) Chain optimization."
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Troubleshooting">
+    ```json
+    {
+      "prompt": "We're experiencing connection issues with web traffic on port 443. Analyze the rules related to HTTPS and identify why connections might be failing."
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Documentation">
+    ```json
+    {
+      "prompt": "Generate documentation for this firewall policy explaining: 1) Purpose of each major rule group, 2) Network segmentation strategy, 3) Default policies and their rationale."
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Implementation Details
+
+### API Key Encryption
+
+The OpenAI API key is encrypted using FWCloud's encryption utilities:
+
+```typescript
+// Encryption (when storing)
+const encryptedKey = await utilsModel.encrypt(apiKey);
+
+// Storage in database
+await repository.save({
+  apiKey: encryptedKey,
+  model: model,
+  aiModelId: modelId
+});
+
+// Decryption (when using)
+const decryptedKey = utilsModel.decrypt(storedApiKey);
+```
+
+The encryption uses:
+- **Algorithm**: AES-256-CBC
+- **Key derivation**: From application master key
+- **Storage**: Encrypted string in database
+
+### OpenAI Integration
+
+The AI assistant service communicates with OpenAI:
+
+```typescript
+const openai = new OpenAI({
+  apiKey: decryptedApiKey
+});
+
+const completion = await openai.chat.completions.create({
+  model: model,  // e.g., 'gpt-4-turbo'
+  messages: [
+    { 
+      role: 'system', 
+      content: 'You are a helpful assistant specializing in firewall policy analysis.' 
+    },
+    { 
+      role: 'user', 
+      content: prompt + '\n' + policyScript 
+    }
+  ]
+});
+
+const response = completion.choices[0].message?.content;
+```
+
+### Response Formatting
+
+Responses are formatted for readability:
+
+```typescript
+public insertLineBreaks(text: string, maxLineLength: number): string {
+  let result = '';
+  let lineLength = 0;
+
+  for (const word of text.split(' ')) {
+    if (lineLength + word.length + 1 > maxLineLength) {
+      result += '\n';
+      lineLength = 0;
+    }
+    result += (lineLength === 0 ? '' : ' ') + word;
+    lineLength += word.length + 1;
+  }
+
+  return result;
+}
+```
+
+Default line length: 120 characters
+
+## Security Considerations
+
+<Warning>
+  **Data Privacy**: Policy scripts and firewall configurations are sent to OpenAI's servers for analysis. This may include:
+  - Internal IP addresses
+  - Network topology information
+  - Security rule logic
+  - Service configurations
+  
+  Ensure this complies with your organization's data handling policies.
+</Warning>
+
+### Best Practices
+
+<AccordionGroup>
+  <Accordion title="Data Minimization">
+    - Only analyze policies when necessary
+    - Sanitize sensitive information from prompts
+    - Consider using generic examples for troubleshooting
+    - Avoid including actual credentials or keys in policy comments
+  </Accordion>
+
+  <Accordion title="API Key Management">
+    - Rotate OpenAI API keys regularly (quarterly recommended)
+    - Set usage limits in OpenAI dashboard
+    - Monitor API usage for anomalies
+    - Use separate keys for production and testing
+    - Revoke keys immediately if compromised
+  </Accordion>
+
+  <Accordion title="Access Control">
+    - Restrict AI assistant access to authorized users only
+    - Log all AI assistant queries for audit purposes
+    - Review queries periodically for policy violations
+    - Implement rate limiting per user
+  </Accordion>
+
+  <Accordion title="Compliance">
+    - Document AI assistant usage in security policies
+    - Obtain approval from compliance team before enabling
+    - Include in data processing agreements
+    - Consider data residency requirements (OpenAI uses US servers)
+    - Review OpenAI's privacy policy and terms of service
+  </Accordion>
+</AccordionGroup>
+
+## Cost Management
+
+### Estimating Costs
+
+OpenAI charges per token (roughly 4 characters per token):
+
+<Tabs>
+  <Tab title="GPT-4 Turbo">
+    **Pricing** (as of 2024):
+    - Input: $10 per 1M tokens
+    - Output: $30 per 1M tokens
+    
+    **Typical policy analysis**:
+    - Policy script: ~2,000 tokens
+    - Prompt: ~100 tokens
+    - Response: ~500 tokens
+    - **Cost per analysis**: ~$0.08
+  </Tab>
+  
+  <Tab title="GPT-3.5 Turbo">
+    **Pricing** (as of 2024):
+    - Input: $0.50 per 1M tokens
+    - Output: $1.50 per 1M tokens
+    
+    **Typical policy analysis**:
+    - Policy script: ~2,000 tokens
+    - Prompt: ~100 tokens
+    - Response: ~500 tokens
+    - **Cost per analysis**: ~$0.002
+  </Tab>
+</Tabs>
+
+### Usage Monitoring
+
+Track AI assistant usage:
+
+```bash
+# View usage statistics (if implemented)
+curl https://api.fwcloud.net/ai-assistant/stats \
+  -H "Authorization: Bearer <token>"
+```
+
+Set up alerts in OpenAI dashboard:
+1. Navigate to Usage section
+2. Set monthly spending limits
+3. Configure email alerts
+4. Review usage patterns weekly
+
+## Troubleshooting
+
+### API Key Validation Fails
+
+**Problem**: Error when setting API key
+
+**Solution**:
+```bash
+# Test API key directly
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer sk-proj-your-key"
+
+# Check for:
+# - Correct key format (starts with sk-)
+# - Key not revoked
+# - Billing enabled on OpenAI account
+# - Sufficient credits/payment method
+```
+
+### Request Fails with 429 Error
+
+**Problem**: "Rate limit exceeded" error
+
+**Solution**:
+- Wait and retry (OpenAI has rate limits)
+- Upgrade OpenAI account tier
+- Implement request queuing in application
+- Switch to GPT-3.5-turbo for higher rate limits
+
+### Empty or Invalid Response
+
+**Problem**: AI returns empty or nonsensical response
+
+**Solution**:
+- Check prompt clarity and specificity
+- Ensure policy script is valid
+- Try different model (GPT-4 for complex analysis)
+- Verify complete policy data is sent
+- Review OpenAI status page for outages
+
+### High Latency
+
+**Problem**: Responses take too long
+
+**Solution**:
+- Use GPT-3.5-turbo for faster responses
+- Reduce policy script size (analyze specific rules only)
+- Implement response caching for common queries
+- Set timeout limits on requests
+
+## Disabling AI Assistant
+
+To disable and remove AI assistant configuration:
+
+```bash
+curl -X DELETE https://api.fwcloud.net/ai-assistant/config \
+  -H "Authorization: Bearer <token>"
+```
+
+This will:
+1. Delete API key from database
+2. Remove model configuration
+3. Disable AI assistant endpoints
+4. Preserve historical query logs (if enabled)
+
+## Future Enhancements
+
+Planned features for AI assistant:
+
+<CardGroup cols={2}>
+  <Card title="Rule Generation" icon="wand-magic-sparkles">
+    Generate policy rules from natural language descriptions
+  </Card>
+  <Card title="Automated Optimization" icon="gauge-high">
+    Automatically suggest and apply rule optimizations
+  </Card>
+  <Card title="Compliance Templates" icon="file-certificate">
+    Built-in compliance checks (PCI-DSS, HIPAA, etc.)
+  </Card>
+  <Card title="Change Impact Analysis" icon="code-compare">
+    Predict effects of rule changes before applying
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Effective Prompts">
+    - Be specific about what you want to analyze
+    - Include context (e.g., "production firewall", "DMZ rules")
+    - Ask one question at a time for clearer answers
+    - Provide example output format when needed
+    - Use follow-up prompts for deeper analysis
+  </Accordion>
+
+  <Accordion title="Integration Workflow">
+    - Use AI assistant during policy review process
+    - Validate AI suggestions before applying
+    - Document AI-recommended changes
+    - Test recommendations in non-production first
+    - Maintain human oversight for all changes
+  </Accordion>
+
+  <Accordion title="Performance">
+    - Analyze specific rules rather than entire policies
+    - Cache common analysis results
+    - Use GPT-3.5-turbo for routine checks
+    - Reserve GPT-4 for complex security analysis
+    - Batch multiple questions in single prompt
+  </Accordion>
+</AccordionGroup>
+
+## Example Workflow
+
+Complete workflow for policy analysis:
+
+<Steps>
+  <Step title="Configure AI assistant">
+    Set up OpenAI credentials in FWCloud API
+  </Step>
+
+  <Step title="Compile policy">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/compile \
+      -H "Authorization: Bearer <token>"
+    ```
+  </Step>
+
+  <Step title="Request analysis">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ai-assistant/policy-script \
+      -H "Authorization: Bearer <token>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "prompt": "Perform a comprehensive security analysis focusing on remote access controls and data exfiltration prevention."
+      }'
+    ```
+  </Step>
+
+  <Step title="Review recommendations">
+    Read AI response and identify actionable improvements
+  </Step>
+
+  <Step title="Implement changes">
+    Make recommended modifications to policy rules through the API
+  </Step>
+
+  <Step title="Verify with AI">
+    Re-analyze updated policy to confirm improvements:
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ai-assistant/compiled-rules?rules[]=15 \
+      -H "Authorization: Bearer <token>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "prompt": "Verify that this updated rule addresses the security concerns from the previous analysis."
+      }'
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    Compile and install the improved policy
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Policy Compilation" icon="file-code" href="/guides/policy-compilation">
+    Learn about policy compilation process
+  </Card>
+  <Card title="Security Best Practices" icon="shield" href="/guides/setup">
+    Firewall security guidelines
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/ai-assistant">
+    Complete AI assistant API documentation
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>

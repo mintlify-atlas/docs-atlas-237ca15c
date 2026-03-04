@@ -1,0 +1,712 @@
+---
+title: VPN Configuration
+description: Complete guide to configuring OpenVPN, WireGuard, and IPSec VPNs in FWCloud
+---
+
+## Overview
+
+FWCloud API supports three VPN technologies for secure remote access and site-to-site connectivity:
+
+- **OpenVPN**: Flexible SSL/TLS-based VPN with extensive platform support
+- **WireGuard**: Modern, lightweight VPN with exceptional performance
+- **IPSec**: Industry-standard VPN protocol for site-to-site connections
+
+Each VPN type integrates with firewall policies and can be managed through the REST API.
+
+## OpenVPN
+
+OpenVPN is a robust, SSL/TLS-based VPN solution suitable for remote access and site-to-site scenarios.
+
+### OpenVPN Types
+
+<Tabs>
+  <Tab title="Server">
+    **OpenVPN Server Configuration**
+    
+    Accept incoming VPN connections from clients.
+    
+    **Use cases**:
+    - Remote access VPN for employees
+    - Mobile device connectivity
+    - Multi-client deployments
+    
+    **Configuration**:
+    ```json
+    {
+      "install_name": "server",
+      "install_dir": "/etc/openvpn",
+      "status": 1,
+      "comment": "Main VPN server"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Client">
+    **OpenVPN Client Configuration**
+    
+    Connect to remote OpenVPN servers.
+    
+    **Use cases**:
+    - Site-to-site VPN connections
+    - Branch office connectivity
+    - Cloud service connections
+    
+    **Configuration**:
+    ```json
+    {
+      "install_name": "client-branch1",
+      "install_dir": "/etc/openvpn/client",
+      "status": 2,
+      "parentId": 1
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Road Warrior">
+    **Client-specific Configurations (CCD)**
+    
+    Per-client custom settings for road warriors.
+    
+    **Features**:
+    - Static IP assignment
+    - Custom routes per client
+    - Client-specific firewall rules
+    - Bandwidth limits
+  </Tab>
+</Tabs>
+
+### Creating OpenVPN Configuration
+
+<Steps>
+  <Step title="Enable OpenVPN plugin">
+    First, enable OpenVPN on the firewall:
+    
+    ```bash
+    curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+      -H "Content-Type: application/json" \
+      -d '{
+        "plugins": ["openvpn"]
+      }'
+    ```
+  </Step>
+
+  <Step title="Create OpenVPN instance">
+    Add a new OpenVPN configuration:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/openvpn \
+      -H "Content-Type: application/json" \
+      -d '{
+        "install_name": "server",
+        "install_dir": "/etc/openvpn",
+        "comment": "Remote access VPN"
+      }'
+    ```
+  </Step>
+
+  <Step title="Configure PKI infrastructure">
+    Set up certificates and keys:
+    
+    ```bash
+    # Create Certificate Authority (CA)
+    curl -X POST https://api.fwcloud.net/fwclouds/1/cas \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cn": "FWCloud CA",
+        "days": 3650,
+        "comment": "Root CA for VPN certificates"
+      }'
+    
+    # Generate server certificate
+    curl -X POST https://api.fwcloud.net/fwclouds/1/cas/1/certs \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cn": "vpn.example.com",
+        "type": "server",
+        "days": 365
+      }'
+    
+    # Generate client certificates
+    curl -X POST https://api.fwcloud.net/fwclouds/1/cas/1/certs \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cn": "client-john",
+        "type": "client",
+        "days": 365
+      }'
+    ```
+  </Step>
+
+  <Step title="Configure OpenVPN options">
+    Set OpenVPN server parameters:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/openvpn/1/options \
+      -H "Content-Type: application/json" \
+      -d '[
+        {"name": "port", "value": "1194"},
+        {"name": "proto", "value": "udp"},
+        {"name": "dev", "value": "tun"},
+        {"name": "server", "value": "10.8.0.0 255.255.255.0"},
+        {"name": "keepalive", "value": "10 120"},
+        {"name": "cipher", "value": "AES-256-GCM"},
+        {"name": "auth", "value": "SHA256"},
+        {"name": "push", "value": "route 192.168.1.0 255.255.255.0"}
+      ]'
+    ```
+  </Step>
+
+  <Step title="Add VPN network prefixes">
+    Define VPN network ranges for use in firewall rules:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/openvpn/1/prefix \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "VPN Clients",
+        "network": "10.8.0.0",
+        "netmask": "255.255.255.0"
+      }'
+    ```
+  </Step>
+
+  <Step title="Deploy configuration">
+    Generate and install OpenVPN configuration files on the firewall.
+  </Step>
+</Steps>
+
+### OpenVPN Status Monitoring
+
+FWCloud tracks OpenVPN connection status and history:
+
+```bash
+# Get current OpenVPN status
+curl https://api.fwcloud.net/fwclouds/1/firewalls/1/openvpn/1/status \
+  -H "Authorization: Bearer <token>"
+```
+
+Response:
+```json
+{
+  "status": "active",
+  "clients": [
+    {
+      "common_name": "client-john",
+      "real_address": "203.0.113.45",
+      "virtual_address": "10.8.0.6",
+      "connected_since": "2026-03-04T08:30:00Z",
+      "bytes_received": 15234567,
+      "bytes_sent": 8765432
+    }
+  ],
+  "updated_at": "2026-03-04T10:35:00Z"
+}
+```
+
+## WireGuard
+
+WireGuard is a modern, high-performance VPN protocol built into the Linux kernel.
+
+### WireGuard Advantages
+
+<CardGroup cols={2}>
+  <Card title="Performance" icon="gauge-high">
+    Significantly faster than OpenVPN with lower CPU usage
+  </Card>
+  <Card title="Simplicity" icon="feather">
+    Minimal codebase (~4,000 lines vs 100,000+ for OpenVPN)
+  </Card>
+  <Card title="Security" icon="shield-check">
+    Modern cryptography with Curve25519, ChaCha20, Poly1305
+  </Card>
+  <Card title="Roaming" icon="mobile">
+    Seamless connection roaming between networks
+  </Card>
+</CardGroup>
+
+### Creating WireGuard Configuration
+
+<Steps>
+  <Step title="Enable WireGuard plugin">
+    ```bash
+    curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+      -H "Content-Type: application/json" \
+      -d '{
+        "plugins": ["wireguard"]
+      }'
+    ```
+  </Step>
+
+  <Step title="Create WireGuard interface">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/wireguard \
+      -H "Content-Type: application/json" \
+      -d '{
+        "install_name": "wg0",
+        "install_dir": "/etc/wireguard",
+        "comment": "WireGuard VPN tunnel"
+      }'
+    ```
+  </Step>
+
+  <Step title="Generate key pairs">
+    WireGuard uses asymmetric cryptography. Generate keys:
+    
+    ```bash
+    # Server private key (automatically generated)
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/wireguard/1/keys/generate \
+      -H "Authorization: Bearer <token>"
+    ```
+    
+    Response:
+    ```json
+    {
+      "private_key": "eDhO7vLAJVRxCAoKLfZTKLqSKMHgMOlLjJQh8b8PJHk=",
+      "public_key": "vKqJScW5G2fL4XpKbfMxQZlKmJqVGPLlHqXKbfNcDTs="
+    }
+    ```
+  </Step>
+
+  <Step title="Configure WireGuard options">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/wireguard/1/options \
+      -H "Content-Type: application/json" \
+      -d '[
+        {"name": "Address", "value": "10.9.0.1/24"},
+        {"name": "ListenPort", "value": "51820"},
+        {"name": "PrivateKey", "value": "eDhO7vLAJVRxCAoKLfZTKLqSKMHgMOlLjJQh8b8PJHk="}
+      ]'
+    ```
+  </Step>
+
+  <Step title="Add WireGuard peers">
+    Configure client peers:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/wireguard/1/peers \
+      -H "Content-Type: application/json" \
+      -d '{
+        "public_key": "client_public_key_here",
+        "allowed_ips": "10.9.0.2/32",
+        "comment": "John's laptop"
+      }'
+    ```
+  </Step>
+
+  <Step title="Define WireGuard prefixes">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/wireguard/1/prefix \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "WireGuard VPN",
+        "network": "10.9.0.0",
+        "netmask": "255.255.255.0"
+      }'
+    ```
+  </Step>
+</Steps>
+
+### Client Configuration
+
+Generate client configuration file:
+
+```ini
+[Interface]
+PrivateKey = client_private_key_here
+Address = 10.9.0.2/32
+DNS = 192.168.1.1
+
+[Peer]
+PublicKey = vKqJScW5G2fL4XpKbfMxQZlKmJqVGPLlHqXKbfNcDTs=
+Endpoint = vpn.example.com:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25
+```
+
+## IPSec
+
+IPSec provides industry-standard, secure site-to-site VPN connections.
+
+### IPSec Modes
+
+<Tabs>
+  <Tab title="Tunnel Mode">
+    **IPSec Tunnel Mode**
+    
+    Encrypts entire IP packets for site-to-site VPNs.
+    
+    **Use cases**:
+    - Branch office connections
+    - Data center interconnections
+    - Partner network access
+    
+    **Configuration**:
+    - ESP protocol for encryption
+    - IKEv2 for key exchange
+    - Both IPv4 and IPv6 support
+  </Tab>
+  
+  <Tab title="Transport Mode">
+    **IPSec Transport Mode**
+    
+    Encrypts only the payload, preserving original headers.
+    
+    **Use cases**:
+    - Host-to-host communication
+    - Application-specific encryption
+    - Lower overhead scenarios
+  </Tab>
+</Tabs>
+
+### Creating IPSec Configuration
+
+<Steps>
+  <Step title="Enable IPSec plugin">
+    ```bash
+    curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+      -H "Content-Type: application/json" \
+      -d '{
+        "plugins": ["ipsec"]
+      }'
+    ```
+  </Step>
+
+  <Step title="Create IPSec connection">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ipsec \
+      -H "Content-Type: application/json" \
+      -d '{
+        "install_name": "branch-office",
+        "install_dir": "/etc/ipsec.d",
+        "comment": "IPSec to Branch Office"
+      }'
+    ```
+  </Step>
+
+  <Step title="Configure IKE settings">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ipsec/1/options \
+      -H "Content-Type: application/json" \
+      -d '[
+        {"name": "ike", "value": "aes256-sha256-modp2048"},
+        {"name": "esp", "value": "aes256-sha256"},
+        {"name": "keyexchange", "value": "ikev2"},
+        {"name": "left", "value": "203.0.113.10"},
+        {"name": "leftsubnet", "value": "192.168.1.0/24"},
+        {"name": "right", "value": "198.51.100.20"},
+        {"name": "rightsubnet", "value": "192.168.2.0/24"},
+        {"name": "auto", "value": "start"}
+      ]'
+    ```
+  </Step>
+
+  <Step title="Set authentication">
+    Configure pre-shared key or certificate authentication:
+    
+    **Pre-shared key**:
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ipsec/1/options \
+      -H "Content-Type: application/json" \
+      -d '[
+        {"name": "authby", "value": "secret"},
+        {"name": "leftid", "value": "@fw-main.example.com"},
+        {"name": "rightid", "value": "@fw-branch.example.com"}
+      ]'
+    ```
+    
+    **Certificate-based**:
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ipsec/1/options \
+      -H "Content-Type: application/json" \
+      -d '[
+        {"name": "authby", "value": "rsasig"},
+        {"name": "leftcert", "value": "fw-main.crt"},
+        {"name": "rightcert", "value": "fw-branch.crt"}
+      ]'
+    ```
+  </Step>
+
+  <Step title="Define IPSec prefixes">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/ipsec/1/prefix \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Branch Office Network",
+        "network": "192.168.2.0",
+        "netmask": "255.255.255.0"
+      }'
+    ```
+  </Step>
+</Steps>
+
+### IPSec Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Not Establishing">
+    **Check IKE negotiation**:
+    ```bash
+    ssh admin@firewall "sudo ipsec status"
+    ssh admin@firewall "sudo ipsec statusall"
+    ```
+    
+    **View logs**:
+    ```bash
+    ssh admin@firewall "sudo journalctl -u strongswan -f"
+    ```
+    
+    **Common issues**:
+    - Mismatched IKE/ESP parameters
+    - Firewall blocking UDP 500/4500
+    - Incorrect pre-shared key
+    - Clock skew between endpoints
+  </Accordion>
+
+  <Accordion title="Tunnel Up But No Traffic">
+    **Verify routing**:
+    ```bash
+    ssh admin@firewall "ip route show table 220"
+    ssh admin@firewall "ip xfrm policy"
+    ```
+    
+    **Check policy database**:
+    ```bash
+    ssh admin@firewall "ip xfrm state"
+    ```
+    
+    **Test connectivity**:
+    ```bash
+    ssh admin@firewall "ping -I 192.168.1.1 192.168.2.1"
+    ```
+  </Accordion>
+
+  <Accordion title="Performance Issues">
+    **Enable hardware acceleration**:
+    ```bash
+    # Check for AES-NI support
+    grep aes /proc/cpuinfo
+    ```
+    
+    **Monitor throughput**:
+    ```bash
+    ssh admin@firewall "iptables -L -n -v | grep ESP"
+    ```
+    
+    **Optimize MTU**:
+    ```bash
+    # Reduce MTU to account for IPSec overhead
+    # Typically 1400-1450 for IPSec
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## VPN Integration with Firewall Rules
+
+VPN networks can be used in firewall policies:
+
+### Using VPN Prefixes
+
+<Tabs>
+  <Tab title="OpenVPN">
+    ```bash
+    # Add OpenVPN network to policy rule
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/policy/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "rule_type": "input",
+        "action": "accept",
+        "sources": [{"type": "openvpn_prefix", "id": 1}],
+        "destinations": [{"type": "network", "id": 10}],
+        "comment": "Allow VPN clients to LAN"
+      }'
+    ```
+  </Tab>
+  
+  <Tab title="WireGuard">
+    ```bash
+    # Use WireGuard interface in policy
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/policy/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "rule_type": "forward",
+        "action": "accept",
+        "input_interface": "wg0",
+        "sources": [{"type": "wireguard_prefix", "id": 1}],
+        "comment": "Forward WireGuard traffic"
+      }'
+    ```
+  </Tab>
+  
+  <Tab title="IPSec">
+    ```bash
+    # Create rule for IPSec tunnel
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/policy/rules \
+      -H "Content-Type: application/json" \
+      -d '{
+        "rule_type": "forward",
+        "action": "accept",
+        "sources": [{"type": "ipsec_prefix", "id": 1}],
+        "destinations": [{"type": "network", "id": 10}],
+        "comment": "Site-to-site tunnel traffic"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## VPN Management Operations
+
+### Starting/Stopping VPN Services
+
+```bash
+# OpenVPN
+ssh admin@firewall "sudo systemctl start openvpn@server"
+ssh admin@firewall "sudo systemctl status openvpn@server"
+ssh admin@firewall "sudo systemctl stop openvpn@server"
+
+# WireGuard
+ssh admin@firewall "sudo wg-quick up wg0"
+ssh admin@firewall "sudo wg show wg0"
+ssh admin@firewall "sudo wg-quick down wg0"
+
+# IPSec
+ssh admin@firewall "sudo ipsec start"
+ssh admin@firewall "sudo ipsec status"
+ssh admin@firewall "sudo ipsec stop"
+```
+
+### Monitoring VPN Connections
+
+<CodeGroup>
+```bash OpenVPN
+# View connected clients
+ssh admin@firewall "sudo cat /var/log/openvpn/status.log"
+
+# Real-time connection log
+ssh admin@firewall "sudo tail -f /var/log/openvpn/openvpn.log"
+```
+
+```bash WireGuard
+# Show interface status
+ssh admin@firewall "sudo wg show wg0"
+
+# Show with transfer statistics
+ssh admin@firewall "sudo wg show wg0 transfer"
+
+# Show latest handshakes
+ssh admin@firewall "sudo wg show wg0 latest-handshakes"
+```
+
+```bash IPSec
+# Show all connections
+ssh admin@firewall "sudo ipsec statusall"
+
+# Show specific connection
+ssh admin@firewall "sudo ipsec status branch-office"
+
+# Show SA information
+ssh admin@firewall "sudo ip xfrm state"
+```
+</CodeGroup>
+
+### Revoking VPN Access
+
+<Steps>
+  <Step title="OpenVPN: Revoke certificate">
+    ```bash
+    curl -X DELETE https://api.fwcloud.net/fwclouds/1/cas/1/certs/5 \
+      -H "Authorization: Bearer <token>"
+    ```
+    
+    Then regenerate CRL and restart OpenVPN.
+  </Step>
+
+  <Step title="WireGuard: Remove peer">
+    ```bash
+    curl -X DELETE https://api.fwcloud.net/fwclouds/1/firewalls/1/wireguard/1/peers/3 \
+      -H "Authorization: Bearer <token>"
+    ```
+    
+    Recompile and reload WireGuard configuration.
+  </Step>
+
+  <Step title="IPSec: Disable connection">
+    ```bash
+    curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1/ipsec/1 \
+      -H "Content-Type: application/json" \
+      -d '{
+        "status": 0
+      }'
+    ```
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Security">
+    - Use strong encryption: AES-256-GCM for OpenVPN, ChaCha20 for WireGuard
+    - Enable certificate authentication over pre-shared keys
+    - Implement certificate revocation lists (CRL)
+    - Use separate VPN networks for different access levels
+    - Enable VPN connection logging
+    - Regularly rotate keys and certificates
+    - Implement connection rate limiting
+  </Accordion>
+
+  <Accordion title="Performance">
+    - Choose WireGuard for best performance
+    - Use UDP for OpenVPN (lower overhead)
+    - Enable hardware acceleration (AES-NI)
+    - Optimize MTU settings (typically 1420 for WireGuard, 1400 for OpenVPN)
+    - Monitor bandwidth usage per client
+    - Limit concurrent connections
+  </Accordion>
+
+  <Accordion title="Reliability">
+    - Configure keepalive/persistent-keepalive
+    - Enable automatic reconnection
+    - Set up monitoring and alerting
+    - Maintain redundant VPN servers
+    - Document VPN architecture
+    - Keep backup configurations
+    - Test failover scenarios
+  </Accordion>
+
+  <Accordion title="Client Management">
+    - Use meaningful client names
+    - Document client purpose
+    - Assign static IPs when needed
+    - Implement per-client policies
+    - Monitor client activity
+    - Automate certificate distribution
+    - Provide clear client setup instructions
+  </Accordion>
+</AccordionGroup>
+
+## Comparison Matrix
+
+| Feature | OpenVPN | WireGuard | IPSec |
+|---------|---------|-----------|-------|
+| **Performance** | Good | Excellent | Good |
+| **Setup Complexity** | Medium | Easy | Complex |
+| **Platform Support** | Extensive | Growing | Universal |
+| **Mobile Roaming** | Good | Excellent | Fair |
+| **Firewall Traversal** | Excellent | Good | Fair |
+| **Encryption** | AES-256 | ChaCha20 | AES-256 |
+| **Best Use Case** | Remote Access | Modern Remote Access | Site-to-Site |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Policy Compilation" icon="file-code" href="/guides/policy-compilation">
+    Integrate VPN rules into firewall policies
+  </Card>
+  <Card title="Certificate Management" icon="certificate" href="/guides/certificates">
+    Manage PKI for VPN authentication
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/vpn">
+    Complete VPN API documentation
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Common VPN issues and solutions
+  </Card>
+</CardGroup>

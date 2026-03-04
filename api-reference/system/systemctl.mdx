@@ -1,0 +1,187 @@
+---
+title: 'Systemctl Communication'
+description: 'Manage system services via systemctl on firewalls'
+---
+
+## Execute Systemctl Command
+
+<CodeGroup>
+```bash POST /systemctl
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "status",
+    "service": "sshd"
+  }'
+```
+</CodeGroup>
+
+Executes a systemctl command on a remote firewall.
+
+**Request Body**
+- `fwcloud` (integer, required) - FWCloud ID
+- `firewall` (integer, required) - Firewall ID
+- `command` (string, required) - Systemctl command: "start", "stop", "restart", "reload", "status", "enable", "disable"
+- `service` (string, required) - Service name (e.g., "sshd", "nginx", "dhcpd")
+- `sshuser` (string, optional) - Override SSH username (encrypted)
+- `sshpass` (string, optional) - Override SSH password (encrypted)
+
+**Response**
+```json
+{
+  "stdout": "● sshd.service - OpenSSH server daemon\n   Loaded: loaded (/usr/lib/systemd/system/sshd.service; enabled)\n   Active: active (running) since...",
+  "stderr": "",
+  "exitCode": 0
+}
+```
+
+## Common Service Operations
+
+### Start a Service
+
+<CodeGroup>
+```bash Start DHCP Service
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "start",
+    "service": "dhcpd"
+  }'
+```
+</CodeGroup>
+
+### Stop a Service
+
+<CodeGroup>
+```bash Stop HAProxy
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "stop",
+    "service": "haproxy"
+  }'
+```
+</CodeGroup>
+
+### Restart a Service
+
+<CodeGroup>
+```bash Restart Keepalived
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "restart",
+    "service": "keepalived"
+  }'
+```
+</CodeGroup>
+
+### Reload Configuration
+
+<CodeGroup>
+```bash Reload Nginx
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "reload",
+    "service": "nginx"
+  }'
+```
+</CodeGroup>
+
+### Check Service Status
+
+<CodeGroup>
+```bash Check Firewall Status
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "status",
+    "service": "iptables"
+  }'
+```
+</CodeGroup>
+
+### Enable Service at Boot
+
+<CodeGroup>
+```bash Enable Service
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "enable",
+    "service": "dhcpd"
+  }'
+```
+</CodeGroup>
+
+### Disable Service at Boot
+
+<CodeGroup>
+```bash Disable Service
+curl -X POST "https://api.example.com/systemctl" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 1,
+    "command": "disable",
+    "service": "dhcpd"
+  }'
+```
+</CodeGroup>
+
+## Supported Services
+
+Common services you can manage:
+
+- **dhcpd** - DHCP server
+- **keepalived** - Keepalived high-availability service
+- **haproxy** - HAProxy load balancer
+- **iptables** - Firewall service
+- **sshd** - SSH daemon
+- **nginx** - Nginx web server
+- **apache2** / **httpd** - Apache web server
+
+## Authentication
+
+The endpoint uses the firewall's configured SSH credentials by default. You can override these by providing encrypted `sshuser` and `sshpass` parameters using the session's PGP key.
+
+## Communication Methods
+
+The endpoint automatically selects the appropriate communication method based on the firewall's configuration:
+- **SSH** - Direct SSH connection (default)
+- **Agent** - Via FWCloud agent if configured
+
+## Error Handling
+
+**401 Unauthorized** - Invalid or missing authentication token
+
+**403 Forbidden** - User lacks permission to manage this firewall
+
+**404 Not Found** - Firewall or FWCloud not found
+
+**422 Unprocessable Entity** - Invalid command or service name
+
+**500 Internal Server Error** - Communication failure or command execution error

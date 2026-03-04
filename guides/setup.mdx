@@ -1,0 +1,322 @@
+---
+title: Installation and Setup
+description: Complete guide to installing and configuring FWCloud API
+---
+
+## Prerequisites
+
+Before installing FWCloud API, ensure your system meets the following requirements:
+
+- **Node.js**: Version 18.x or higher
+- **npm**: Version 9.x or higher
+- **MySQL/MariaDB**: Version 8.x or higher
+- **Operating System**: Linux (Ubuntu 20.04+ or Debian 11+ recommended)
+- **Disk Space**: Minimum 2GB for application and data
+- **RAM**: Minimum 2GB (4GB recommended)
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the FWCloud API repository from GitHub:
+    
+    ```bash
+    git clone https://github.com/soltecsis/fwcloud-api.git
+    cd fwcloud-api
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all required Node.js packages:
+    
+    ```bash
+    npm install
+    ```
+    
+    This will install all dependencies defined in `package.json`, including:
+    - Express.js for REST API
+    - TypeORM for database operations
+    - SSH2 for firewall communication
+    - OpenAI SDK for AI assistant features
+  </Step>
+
+  <Step title="Configure database connection">
+    Create a `.env` file in the root directory with your database credentials:
+    
+    ```bash
+    # Database Configuration
+    DB_HOST=localhost
+    DB_PORT=3306
+    DB_NAME=fwcloud
+    DB_USER=fwcloud
+    DB_PASSWORD=your_secure_password
+    
+    # Application Configuration
+    NODE_ENV=production
+    APP_PORT=3131
+    
+    # Security
+    SESSION_SECRET=generate_random_secret_here
+    ```
+    
+    <Warning>
+      Never commit the `.env` file to version control. Keep your database credentials secure.
+    </Warning>
+  </Step>
+
+  <Step title="Initialize the database">
+    Create the database and run migrations:
+    
+    ```bash
+    # Create the database (run this in MySQL)
+    mysql -u root -p -e "CREATE DATABASE fwcloud CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    mysql -u root -p -e "CREATE USER 'fwcloud'@'localhost' IDENTIFIED BY 'your_secure_password';"
+    mysql -u root -p -e "GRANT ALL PRIVILEGES ON fwcloud.* TO 'fwcloud'@'localhost';"
+    
+    # Run database migrations
+    npm run build
+    node fwcli migration:run
+    ```
+  </Step>
+
+  <Step title="Add standard services">
+    Populate the database with standard firewall services (HTTP, HTTPS, SSH, etc.):
+    
+    ```bash
+    node fwcli standard:services:add
+    ```
+  </Step>
+
+  <Step title="Build the application">
+    Compile TypeScript to JavaScript:
+    
+    ```bash
+    npm run build
+    ```
+    
+    This command performs the following:
+    - Removes the previous `dist/` directory
+    - Copies view templates to `dist/src/views`
+    - Compiles TypeScript files using `tsc`
+  </Step>
+
+  <Step title="Start the server">
+    Start the FWCloud API server:
+    
+    ```bash
+    npm start
+    ```
+    
+    The server will start on port 3131 by default. You should see:
+    
+    ```
+    FWCloud API server listening on port 3131
+    ```
+  </Step>
+</Steps>
+
+## Configuration
+
+### Application Settings
+
+FWCloud API uses Convict for configuration management. The main configuration file is located at `src/config/config.ts`.
+
+#### Policy Script Settings
+
+Configure where compiled firewall policies are stored:
+
+```javascript
+policy: {
+  data_dir: '/path/to/policy/data',
+  script_name: 'firewall.sh'
+}
+```
+
+#### Backup Settings
+
+Configure automated backup behavior:
+
+```javascript
+backup: {
+  data_dir: './backups',
+  schedule: '0 0 2 * * *',  // 2 AM daily
+  max_copies: 10,
+  max_days: 30
+}
+```
+
+### Firewall Communication
+
+FWCloud API supports two communication methods for connecting to firewalls:
+
+<Tabs>
+  <Tab title="SSH">
+    Configure SSH-based communication:
+    
+    - **Port**: Default 22 (configurable)
+    - **Authentication**: Username and password (encrypted in database)
+    - **Use case**: Traditional Linux firewalls with SSH access
+    
+    When creating a firewall, set `install_communication` to `ssh`.
+  </Tab>
+  
+  <Tab title="Agent">
+    Configure Agent-based communication:
+    
+    - **Protocol**: HTTP or HTTPS
+    - **Port**: Custom port (default 33033)
+    - **Authentication**: API key
+    - **Use case**: Firewalls with FWCloud Agent installed
+    
+    When creating a firewall, set `install_communication` to `agent`.
+  </Tab>
+</Tabs>
+
+## Available CLI Commands
+
+FWCloud API provides several CLI commands for administration:
+
+```bash
+# Start the server
+npm start
+
+# Start the server in background
+npm run start:bg
+
+# Stop the server
+npm run stop
+
+# Development mode with auto-reload
+npm run dev
+
+# Build the application
+npm run build
+
+# Run tests
+npm test
+
+# Database migrations
+node fwcli migration:run
+node fwcli migration:rollback
+
+# Backup operations
+node fwcli backup:create --comment "Manual backup"
+node fwcli backup:restore --id <backup_id>
+
+# Update application
+npm run update
+```
+
+## Post-Installation Steps
+
+<Steps>
+  <Step title="Create admin user">
+    Access the web interface and create your first administrator account.
+  </Step>
+
+  <Step title="Configure SSL/TLS">
+    For production environments, enable HTTPS:
+    
+    ```bash
+    npm run update-cert
+    ```
+    
+    This generates or updates SSL certificates for the API.
+  </Step>
+
+  <Step title="Set up automated backups">
+    Verify the backup configuration and schedule:
+    
+    ```bash
+    node fwcli backup:create --comment "Test backup"
+    ```
+  </Step>
+
+  <Step title="Configure firewall access">
+    Test connectivity to your first firewall by adding it through the web interface and verifying SSH/Agent communication.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Database Connection Issues
+
+**Problem**: Cannot connect to MySQL database
+
+**Solution**:
+- Verify MySQL is running: `systemctl status mysql`
+- Check credentials in `.env` file
+- Ensure database user has proper permissions
+- Check MySQL bind address in `/etc/mysql/my.cnf`
+
+### Build Errors
+
+**Problem**: TypeScript compilation fails
+
+**Solution**:
+```bash
+# Clean and rebuild
+npm run clean
+npm install
+npm run build
+```
+
+### Port Already in Use
+
+**Problem**: Port 3131 is already in use
+
+**Solution**:
+- Stop existing process: `npm run stop`
+- Or change port in `.env`: `APP_PORT=3132`
+- Check for zombie processes: `lsof -i :3131`
+
+### Migration Failures
+
+**Problem**: Database migration errors
+
+**Solution**:
+```bash
+# Reset migrations (WARNING: destroys data)
+node fwcli migration:reset
+node fwcli migration:run
+```
+
+## Performance Tuning
+
+### Database Optimization
+
+For large deployments, optimize MySQL configuration:
+
+```ini
+# /etc/mysql/my.cnf
+[mysqld]
+innodb_buffer_pool_size = 2G
+innodb_log_file_size = 256M
+max_connections = 200
+```
+
+### Node.js Memory
+
+Increase Node.js heap size for large policy compilations:
+
+```bash
+export NODE_OPTIONS="--max-old-space-size=4096"
+npm start
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Firewall Management" icon="shield" href="/guides/firewall-management">
+    Learn how to add and manage firewalls
+  </Card>
+  <Card title="Policy Compilation" icon="file-code" href="/guides/policy-compilation">
+    Compile and deploy firewall policies
+  </Card>
+  <Card title="VPN Configuration" icon="network-wired" href="/guides/vpn-configuration">
+    Set up OpenVPN, WireGuard, and IPSec
+  </Card>
+  <Card title="Backup Management" icon="database" href="/guides/backups">
+    Configure automated backups
+  </Card>
+</CardGroup>

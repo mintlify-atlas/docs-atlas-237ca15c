@@ -1,0 +1,305 @@
+---
+title: Migration Commands
+description: Database migration commands for schema management and version control
+---
+
+## Overview
+
+Migration commands manage database schema changes using TypeORM migrations. These commands allow you to version control your database schema, apply changes incrementally, and rollback if needed.
+
+## Commands
+
+### migration:run
+
+Execute all pending database migrations.
+
+**Syntax:**
+```bash
+./fwcli migration:run
+```
+
+**Description:**
+Runs all pending migrations that haven't been executed yet. This command:
+- Connects to the database using the configured data source
+- Checks for pending migrations
+- Executes them in order
+- Updates the migrations table
+
+**Example:**
+```bash
+./fwcli migration:run
+```
+
+**Output:**
+```
+Pending migrations applied.
+```
+
+**Used in package.json:**
+```json
+"update": "npm run stop && git pull && npm install && npm run build && node fwcli migration:run && node fwcli standard:services:add"
+```
+
+---
+
+### migration:create
+
+Create a new migration file.
+
+**Syntax:**
+```bash
+./fwcli migration:create -n <name> -t <tag> [-d <directory>]
+```
+
+**Options:**
+
+| Option | Alias | Required | Description |
+|--------|-------|----------|-------------|
+| `--name` | `-n` | Yes | Migration name (e.g., "AddUserTable") |
+| `--tag` | `-t` | Yes | Schema version tag the migration belongs to |
+| `--directory` | `-d` | No | Custom migration directory (defaults to configured migration directory) |
+
+**Description:**
+Creates a new TypeORM migration file with a timestamp prefix. The file will be created in:
+```
+<migration_directory>/<tag>/<timestamp>-<name>.ts
+```
+
+**Examples:**
+
+1. Create a migration with tag:
+```bash
+./fwcli migration:create -n AddUserEmailColumn -t v2.4.0
+```
+
+2. Create a migration in a custom directory:
+```bash
+./fwcli migration:create -n InitialSchema -t v1.0.0 -d ./custom/migrations
+```
+
+**Output:**
+```
+Migration file created
+```
+
+**Generated File Structure:**
+```typescript
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class AddUserEmailColumn1234567890 implements MigrationInterface {
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        // Write migration logic here
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        // Write rollback logic here
+    }
+}
+```
+
+---
+
+### migration:rollback
+
+Rollback previously executed migrations.
+
+**Syntax:**
+```bash
+./fwcli migration:rollback [-s <steps>]
+```
+
+**Options:**
+
+| Option | Alias | Required | Default | Description |
+|--------|-------|----------|---------|-------------|
+| `--steps` | `-s` | No | 1 | Number of migrations to rollback |
+
+**Description:**
+Reverts the specified number of migrations by executing their `down()` methods in reverse order.
+
+**Examples:**
+
+1. Rollback the last migration:
+```bash
+./fwcli migration:rollback
+```
+
+2. Rollback the last 3 migrations:
+```bash
+./fwcli migration:rollback -s 3
+```
+
+**Output:**
+```
+Rollback 3 migration(s).
+```
+
+**Warning:**
+Rolling back migrations may result in data loss. Always backup your database before performing rollbacks.
+
+---
+
+### migration:reset
+
+Reset all migrations and wipe the database.
+
+**Syntax:**
+```bash
+./fwcli migration:reset
+```
+
+**Description:**
+Reverts all migrations and clears the database. This command:
+- Rolls back all executed migrations
+- Removes all tables
+- Clears the migrations history
+
+**Example:**
+```bash
+./fwcli migration:reset
+```
+
+**Output:**
+```
+Database wiped out.
+```
+
+**Danger:**
+This command will destroy all data in the database. Use with extreme caution and only in development environments.
+
+---
+
+### migration:data
+
+Import default data into the database.
+
+**Syntax:**
+```bash
+./fwcli migration:data [--force]
+```
+
+**Options:**
+
+| Option | Alias | Required | Type | Description |
+|--------|-------|----------|------|-------------|
+| `--force` | - | No | boolean | Force import even if default data already exists |
+
+**Description:**
+Imports default data such as standard IP objects and services. The command checks if default data already exists (by looking for IP object with ID 10000) and skips import unless `--force` is used.
+
+**Examples:**
+
+1. Import default data (first time):
+```bash
+./fwcli migration:data
+```
+
+2. Force re-import default data:
+```bash
+./fwcli migration:data --force
+```
+
+**Output (first time):**
+```
+Default data imported.
+```
+
+**Output (already imported):**
+```
+Default data already imported.
+```
+
+## Migration Workflow
+
+Typical workflow for managing database schema changes:
+
+### 1. Development
+
+```bash
+# Create a new migration
+./fwcli migration:create -n AddFirewallTable -t v2.3.0
+
+# Edit the generated migration file
+# Add your schema changes in the up() and down() methods
+
+# Run the migration
+./fwcli migration:run
+```
+
+### 2. Testing
+
+```bash
+# Test rollback
+./fwcli migration:rollback -s 1
+
+# Test re-applying
+./fwcli migration:run
+```
+
+### 3. Deployment
+
+```bash
+# Pull latest code
+git pull
+
+# Install dependencies
+npm install
+
+# Build project
+npm run build
+
+# Run migrations
+./fwcli migration:run
+
+# Import default data if needed
+./fwcli migration:data
+```
+
+### 4. Fresh Installation
+
+```bash
+# Build project
+npm run build
+
+# Run all migrations
+./fwcli migration:run
+
+# Import default data
+./fwcli migration:data
+
+# Add standard services
+./fwcli standard:services:add
+```
+
+## Best Practices
+
+1. **Always test rollbacks** - Ensure your `down()` method correctly reverses the `up()` method
+2. **Use descriptive names** - Migration names should clearly describe the change
+3. **Version tagging** - Use semantic versioning for tags (e.g., v2.3.0)
+4. **Backup before rollback** - Always create a backup before rolling back migrations in production
+5. **One change per migration** - Keep migrations focused on a single logical change
+6. **Never edit executed migrations** - Create a new migration to modify previous changes
+
+## Database Connection
+
+Migrations use the TypeORM DataSource configured in the DatabaseService:
+- Connection name: `'cli'`
+- Configuration loaded from application config
+- Migration directory specified in database config
+
+## Error Handling
+
+Common migration errors:
+
+**"Migration directory not found"**
+- Check your database configuration
+- Ensure the migration directory exists
+
+**"Migration already executed"**
+- The migration has already been run
+- Check the migrations table in your database
+
+**"Error in migration"**
+- Review the migration SQL/code
+- Check database logs for detailed error messages
+- Ensure database user has necessary permissions

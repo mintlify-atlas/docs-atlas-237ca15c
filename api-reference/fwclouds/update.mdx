@@ -1,0 +1,93 @@
+---
+title: 'Update FWCloud'
+openapi: 'PUT /fwclouds/:fwcloud'
+---
+
+Updates an existing FWCloud instance.
+
+## Authentication
+
+Requires authentication and update permissions on the FWCloud.
+
+## Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud to update
+</ParamField>
+
+## Request Body
+
+<ParamField body="name" type="string" required>
+  The updated name of the FWCloud instance
+</ParamField>
+
+<ParamField body="image" type="string">
+  Optional updated image identifier for the FWCloud
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional updated comment or description for the FWCloud
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="number">
+  The unique identifier of the updated FWCloud
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The updated name of the FWCloud
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  The updated image identifier
+</ResponseField>
+
+<ResponseField name="comment" type="string">
+  The updated comment or description
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  Timestamp when the FWCloud was last updated
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X PUT https://api.fwcloud.net/fwclouds/1 \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Production FWCloud",
+    "image": "fwcloud-prod-v2",
+    "comment": "Updated production environment firewall cloud"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "name": "Updated Production FWCloud",
+  "image": "fwcloud-prod-v2",
+  "comment": "Updated production environment firewall cloud",
+  "created_at": "2024-03-04T10:00:00.000Z",
+  "updated_at": "2024-03-04T11:30:00.000Z",
+  "locked": false
+}
+```
+
+## Errors
+
+<ResponseField name="404" type="error">
+  Not Found - FWCloud with specified ID does not exist
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  Forbidden - Insufficient permissions to update this FWCloud
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Bad Request - Invalid input parameters
+</ResponseField>

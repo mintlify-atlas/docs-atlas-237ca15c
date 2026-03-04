@@ -1,0 +1,359 @@
+---
+title: Configuration Reference
+description: Complete configuration options for FWCloud-API
+---
+
+## Overview
+
+FWCloud-API uses a combination of environment variables and JSON configuration files to manage settings. Configuration is based on the [convict](https://github.com/mozilla/node-convict) library with moment.js format support.
+
+## Configuration Files
+
+Configuration files are located in the `config/` directory:
+
+```
+config/
+├── dev.json              # Development environment
+├── prod.json             # Production environment
+├── test.json             # Test environment
+└── log4js_configuration.json  # Logging configuration
+```
+
+## Environment Variables
+
+### Application Environment
+
+```bash
+# Environment mode (dev, prod, test)
+NODE_ENV=prod
+```
+
+### API Server Configuration
+
+```bash
+# Server binding address (default: 127.0.0.1)
+APISRV_IP=0.0.0.0
+
+# HTTPS Configuration
+APISRV_HTTPS_CERT="/path/to/certificate.crt"
+APISRV_HTTPS_KEY="/path/to/private.key"
+```
+
+### Database Configuration
+
+```bash
+# Database connection type
+TYPEORM_CONNECTION=mysql
+
+# Database host (use 127.0.0.1 instead of localhost for consistency)
+TYPEORM_HOST=127.0.0.1
+
+# Database port
+TYPEORM_PORT=3306
+
+# Database name
+TYPEORM_DATABASE=fwcloud
+
+# Database credentials
+TYPEORM_USERNAME=fwcloud_user
+TYPEORM_PASSWORD=secure_password
+```
+
+<Warning>
+Always use `127.0.0.1` instead of `localhost` for database host to avoid DNS resolution issues, especially in Debian 12 and similar systems.
+</Warning>
+
+### Security Configuration
+
+```bash
+# Session secret for cookie signing and CSRF tokens
+SESSION_SECRET=your_random_session_secret_here
+
+# Encryption secret for data encryption
+CRYPT_SECRET=your_random_crypt_secret_here
+```
+
+<Note>
+Generate secrets using:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+</Note>
+
+### CORS Configuration
+
+```bash
+# Enable/disable CORS middleware
+CORS_ENABLED=true
+
+# Whitelist of allowed origins (comma-separated)
+CORS_WHITELIST="http://localhost,https://your-domain.com"
+```
+
+### Logging Configuration
+
+```bash
+# Enable stdout logging
+LOG_STDOUT=true
+
+# Enable query logging (useful for debugging)
+LOG_QUERIES=false
+```
+
+## JSON Configuration Options
+
+### Development Configuration (`config/dev.json`)
+
+```json
+{
+  "api_server": {
+    "https": false
+  },
+  "session": {
+    "force_HTTPS": false
+  },
+  "confirmation_token": false,
+  "log": {
+    "stdout": true,
+    "queries": false
+  }
+}
+```
+
+### Production Configuration (`config/prod.json`)
+
+```json
+{
+  "api_server": {
+    "https": true
+  },
+  "session": {
+    "force_HTTPS": true
+  }
+}
+```
+
+## Advanced Configuration Options
+
+### Session Configuration
+
+- **force_HTTPS**: Require HTTPS for session cookies (production: `true`)
+- **SESSION_SECRET**: Secret for session cookie signing
+- **Session timeout**: Configurable via session middleware
+
+### API Server Options
+
+- **https**: Enable/disable HTTPS (production: `true`)
+- **Port**: Default is 3131
+- **Bind address**: Default is `127.0.0.1` (use `0.0.0.0` for all interfaces)
+
+### Confirmation Tokens
+
+- **confirmation_token**: Require confirmation tokens for API calls (disable in dev, enable in prod)
+- Tokens prevent CSRF attacks
+- Disabled for `/ping` endpoint
+
+### Socket.IO Configuration
+
+```javascript
+// Configure ping interval and timeout
+{
+  pingInterval: 25000,  // milliseconds
+  pingTimeout: 60000    // milliseconds
+}
+```
+
+### FWCloud Limits
+
+Configure limits on resources:
+
+```javascript
+{
+  limits: {
+    fwclouds: 10,           // Maximum number of FWClouds
+    firewalls: 50,          // Maximum firewalls per FWCloud
+    clusters: 10,           // Maximum clusters per FWCloud
+    clusterNodes: 5         // Maximum nodes per cluster
+  }
+}
+```
+
+### SSH Configuration
+
+```javascript
+{
+  ssh: {
+    enabled: true,          // Enable/disable SSH communication
+    timeout: 30000          // Connection timeout in milliseconds
+  }
+}
+```
+
+### OpenVPN History Configuration
+
+```javascript
+{
+  openvpn: {
+    archiver: {
+      enabled: true,        // Enable OpenVPN history archiving
+      interval: 300000      // Collection interval in milliseconds
+    }
+  }
+}
+```
+
+### Backup Configuration
+
+```javascript
+{
+  backup: {
+    enabled: true,
+    retention: {
+      daily: 7,             // Keep 7 daily backups
+      weekly: 4,            // Keep 4 weekly backups
+      monthly: 12           // Keep 12 monthly backups
+    },
+    schedule: "0 2 * * *"  // Cron schedule (2 AM daily)
+  }
+}
+```
+
+## Logging Configuration
+
+### Log4js Configuration (`config/log4js_configuration.json`)
+
+FWCloud-API uses log4js for logging. Configure log levels, appenders, and formats:
+
+```json
+{
+  "appenders": {
+    "console": {
+      "type": "console"
+    },
+    "file": {
+      "type": "file",
+      "filename": "logs/api.log",
+      "maxLogSize": 10485760,
+      "backups": 5
+    }
+  },
+  "categories": {
+    "default": {
+      "appenders": ["console", "file"],
+      "level": "info"
+    }
+  }
+}
+```
+
+### Log Files
+
+- `logs/api.log`: Main application log
+- `logs/http.log`: HTTP request log
+
+### Log Levels
+
+- **trace**: Detailed debugging information
+- **debug**: Debug information
+- **info**: Informational messages (default)
+- **warn**: Warning messages
+- **error**: Error messages
+- **fatal**: Fatal errors
+
+## AI Integration Configuration
+
+FWCloud-API supports AI integration for querying firewall policies:
+
+```bash
+# OpenAI API Configuration
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-4
+OPENAI_ENABLED=true
+```
+
+## Database Connection Pooling
+
+```javascript
+{
+  database: {
+    extra: {
+      connectionLimit: 10,
+      waitForConnections: true,
+      queueLimit: 0
+    }
+  }
+}
+```
+
+## Maintenance Mode
+
+Enable maintenance mode to prevent API access during updates:
+
+```javascript
+{
+  maintenance: {
+    enabled: false,
+    message: "System maintenance in progress"
+  }
+}
+```
+
+<Note>
+The `/ping` endpoint always works, even in maintenance mode.
+</Note>
+
+## Environment-Specific Overrides
+
+Configuration priority (highest to lowest):
+
+1. Environment variables
+2. Environment-specific JSON file (`dev.json`, `prod.json`, `test.json`)
+3. Default values in code
+
+## Configuration Best Practices
+
+### Production
+
+- Always enable HTTPS
+- Use strong random secrets
+- Enable confirmation tokens
+- Set appropriate resource limits
+- Configure proper CORS whitelist
+- Use `127.0.0.1` for database host
+- Enable log rotation
+- Disable query logging
+
+### Development
+
+- Disable HTTPS for local development
+- Disable confirmation tokens for easier testing
+- Enable query logging for debugging
+- Use stdout logging
+
+### Security
+
+- Never commit secrets to version control
+- Use environment variables for sensitive data
+- Rotate secrets regularly
+- Limit CORS whitelist to trusted domains
+- Use TLS certificates from trusted CAs in production
+
+## Updating TLS Certificates
+
+Update TLS certificates without downtime:
+
+```bash
+npm run update-cert
+```
+
+Or manually:
+
+```bash
+./bin/update-cert.sh api
+```
+
+## Next Steps
+
+- [Set up the database](/advanced/database)
+- [Deploy with Docker](/advanced/docker)
+- [Learn about testing](/advanced/testing)

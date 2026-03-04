@@ -1,0 +1,378 @@
+---
+title: Key Generation
+description: Generate secure cryptographic keys for FWCloud application
+---
+
+## Overview
+
+The `keys:generate` command creates random cryptographic keys required for session management and data encryption in FWCloud. These keys are essential for securing user sessions and encrypting sensitive data.
+
+## Command
+
+### keys:generate
+
+Generate random encryption and session keys.
+
+**Syntax:**
+```bash
+./fwcli keys:generate [--force]
+```
+
+**Options:**
+
+| Option | Alias | Type | Required | Description |
+|--------|-------|------|----------|-------------|
+| `--force` | - | boolean | No | Force key generation even when keys are already defined |
+
+**Description:**
+Generates two critical security keys and stores them in the `.env` file:
+
+1. **SESSION_SECRET** - Used for securing session cookies
+2. **CRYPT_SECRET** - Used for encrypting sensitive data
+
+Each key is a 60-character hexadecimal string (30 random bytes) generated using Node.js `crypto.randomBytes()`.
+
+## Usage Examples
+
+### Initial Setup
+
+Generate keys for the first time:
+
+```bash
+./fwcli keys:generate
+```
+
+**Output:**
+```
+SESSION_SECRET key generated.
+CRYPT_SECRET key generated.
+```
+
+### Subsequent Runs
+
+If keys are already defined:
+
+```bash
+./fwcli keys:generate
+```
+
+**Output:**
+```
+SESSION_SECRET already defined.
+CRYPT_SECRET already defined.
+```
+
+### Force Regeneration
+
+Regenerate keys even if they already exist:
+
+```bash
+./fwcli keys:generate --force
+```
+
+**Output:**
+```
+SESSION_SECRET key generated.
+CRYPT_SECRET key generated.
+```
+
+**Warning:** Force regeneration will invalidate existing sessions and may make encrypted data unrecoverable.
+
+## Environment File
+
+### Location
+
+The command modifies the `.env` file in the project root directory.
+
+### File Structure
+
+The `.env` file should contain:
+
+```bash
+# Session encryption key
+SESSION_SECRET=
+
+# Data encryption key
+CRYPT_SECRET=
+```
+
+### After Generation
+
+```bash
+# Session encryption key
+SESSION_SECRET=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0
+
+# Data encryption key
+CRYPT_SECRET=z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0
+```
+
+## Key Specifications
+
+### Key Length
+
+- **Raw bytes:** 30 bytes
+- **Hex string:** 60 characters
+- **Constant:** `KeysGenerateCommand.KEY_LENGTH = 30`
+
+### Generation Method
+
+Keys are generated using cryptographically secure random bytes:
+
+```typescript
+crypto.randomBytes(30, (err: Error, buff: Buffer) => {
+  return buff.toString('hex');
+});
+```
+
+### Key Format
+
+Hexadecimal string (characters 0-9, a-f):
+```
+a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
+```
+
+## Security Considerations
+
+### When to Generate Keys
+
+1. **Initial Installation**
+   - First-time FWCloud setup
+   - Before starting the application
+
+2. **Security Incidents**
+   - Suspected key compromise
+   - Security policy requirements
+   - After unauthorized access
+
+3. **Key Rotation**
+   - Periodic security maintenance
+   - Compliance requirements
+   - Best practice schedules (e.g., annually)
+
+### When NOT to Regenerate
+
+Avoid regenerating keys when:
+- Application is in production with active users
+- Encrypted data exists that you need to preserve
+- No backup plan for re-encrypting data
+
+### Impact of Regeneration
+
+**SESSION_SECRET changes will:**
+- Invalidate all active user sessions
+- Force all users to log in again
+- Not affect stored data
+
+**CRYPT_SECRET changes will:**
+- Make previously encrypted data unrecoverable
+- Require re-encryption of all sensitive data
+- Break existing encrypted credentials
+
+## Best Practices
+
+### 1. Initial Setup
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd fwcloud-api
+
+# Install dependencies
+npm install
+
+# Generate keys
+./fwcli keys:generate
+
+# Build and start
+npm run build
+npm start
+```
+
+### 2. Key Protection
+
+```bash
+# Secure .env file permissions
+chmod 600 .env
+
+# Never commit .env to version control
+echo ".env" >> .gitignore
+```
+
+### 3. Backup Keys
+
+```bash
+# Backup keys before regeneration
+cp .env .env.backup.$(date +%Y%m%d)
+
+# Regenerate
+./fwcli keys:generate --force
+```
+
+### 4. Key Rotation Process
+
+```bash
+# 1. Notify users of scheduled maintenance
+# 2. Create database backup
+./fwcli backup:create -c "Before key rotation"
+
+# 3. Backup current keys
+cp .env .env.backup.$(date +%Y%m%d)
+
+# 4. Regenerate keys
+./fwcli keys:generate --force
+
+# 5. Restart application
+npm restart
+
+# 6. Verify functionality
+# 7. Users will need to log in again
+```
+
+## Integration
+
+### Application Usage
+
+The generated keys are used by:
+
+**SESSION_SECRET:**
+- Express session middleware
+- Cookie signing and encryption
+- Session store configuration
+
+**CRYPT_SECRET:**
+- Encrypting sensitive database fields
+- API token encryption
+- Password reset tokens
+- Two-factor authentication secrets
+
+### Configuration Loading
+
+Keys are loaded through the application's configuration system:
+
+```typescript
+// Loaded from .env via convict/dotenv
+const sessionSecret = config.get('session.secret');
+const cryptSecret = config.get('crypt.secret');
+```
+
+## Troubleshooting
+
+### Error: "File .env does not exists"
+
+**Solution:**
+Create the `.env` file:
+
+```bash
+# Copy from template if available
+cp .env.example .env
+
+# Or create manually
+touch .env
+echo "SESSION_SECRET=" >> .env
+echo "CRYPT_SECRET=" >> .env
+
+# Generate keys
+./fwcli keys:generate
+```
+
+### Error: "Permission denied"
+
+**Solution:**
+Check file permissions:
+
+```bash
+# Make .env writable
+chmod 644 .env
+
+# Run command
+./fwcli keys:generate
+
+# Secure permissions
+chmod 600 .env
+```
+
+### Keys Not Working
+
+**Check:**
+
+1. Keys are properly formatted in `.env`
+2. No extra spaces or quotes around keys
+3. File is in the correct location (project root)
+4. Application is restarted after generation
+
+```bash
+# Verify .env contents
+cat .env | grep SECRET
+
+# Should show:
+SESSION_SECRET=<60-char-hex-string>
+CRYPT_SECRET=<60-char-hex-string>
+```
+
+### Empty Keys Generated
+
+**Solution:**
+Regenerate with force:
+
+```bash
+./fwcli keys:generate --force
+```
+
+## Environment Variables
+
+### SESSION_SECRET
+
+**Purpose:** Secures session cookies
+
+**Used by:**
+- `express-session` middleware
+- Cookie signing
+- Session encryption
+
+**Impact if compromised:**
+- Session hijacking possible
+- Unauthorized access to user accounts
+- Cookie forgery attacks
+
+### CRYPT_SECRET
+
+**Purpose:** Encrypts sensitive application data
+
+**Used by:**
+- Database field encryption
+- API credentials
+- Sensitive configuration
+- Authentication tokens
+
+**Impact if compromised:**
+- Encrypted data readable by attackers
+- Sensitive information exposed
+- Credential theft possible
+
+## Compliance and Auditing
+
+### Key Generation Audit
+
+Log key generation events:
+
+```bash
+# Log to audit file
+./fwcli keys:generate --force 2>&1 | tee -a /var/log/fwcloud/key-rotation.log
+```
+
+### Security Policy Compliance
+
+Ensure key generation meets:
+- Minimum key length requirements (60 characters)
+- Cryptographic randomness standards
+- Secure storage practices
+- Access control policies
+- Rotation schedules
+
+### Documentation
+
+Maintain records of:
+- Key generation dates
+- Reason for regeneration
+- Who performed the operation
+- Any incidents or issues

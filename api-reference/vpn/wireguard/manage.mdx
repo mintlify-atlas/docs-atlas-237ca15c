@@ -1,0 +1,263 @@
+---
+title: "WireGuard Configuration Management"
+description: "Create, read, update, and delete WireGuard VPN configurations"
+---
+
+Manage WireGuard VPN server and client configurations, including creation of tunnels, configuration of options, and lifecycle management.
+
+## Create WireGuard Configuration
+
+<api method="POST" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards">
+  Creates a new WireGuard server or client configuration
+</api>
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID where the WireGuard configuration will be deployed
+</ParamField>
+
+### Body Parameters
+
+<ParamField body="fwcloud" type="number" required>
+  FWCloud ID (must match path parameter)
+</ParamField>
+
+<ParamField body="firewall" type="number" required>
+  Firewall ID (must match path parameter)
+</ParamField>
+
+<ParamField body="wireguard" type="number">
+  Parent WireGuard server ID. Required when creating a client configuration. Must be omitted when creating a server configuration.
+</ParamField>
+
+<ParamField body="crt" type="number" required>
+  Certificate ID associated with this configuration. Type must be 1 for client certificates or 2 for server certificates.
+</ParamField>
+
+<ParamField body="install_dir" type="string">
+  Installation directory path on the firewall (e.g., "/etc/wireguard")
+</ParamField>
+
+<ParamField body="install_name" type="string">
+  Configuration filename without extension (e.g., "wg0"). Must match pattern: `^[a-zA-Z0-9\-_.]{2,64}$`
+</ParamField>
+
+<ParamField body="options" type="array" required>
+  Array of WireGuard configuration options
+  <Expandable title="Option object properties">
+    <ParamField body="name" type="string" required>
+      Option name. Valid values: `PrivateKey`, `Address`, `DNS`, `MTU`, `Table`, `Endpoint`, `AllowedIPs`, `PersistentKeepalive`, `ListenPort`, `PublicKey`, `PreUp`, `PostUp`, `PreDown`, `PostDown`, `SaveConfig`, `FwMark`, `PresharedKey`, `<<disable>>`, `<<vpn_network>>`
+    </ParamField>
+    <ParamField body="arg" type="string">
+      Option value. Must be valid for the specified option name:
+      - `PrivateKey`: Base64 key (44 chars ending in =)
+      - `Address`: IPv4 CIDR (e.g., "10.0.0.1/24")
+      - `ListenPort`: Port number (1-65535)
+      - `PublicKey`: Base64 key (42-44 chars)
+      - `AllowedIPs`: Comma-separated IPv4 CIDRs
+      - `Endpoint`: IP:port or domain:port
+      - `PersistentKeepalive`: Seconds (0-65535)
+    </ParamField>
+    <ParamField body="ipobj" type="number">
+      IP object ID if this option references an IP object
+    </ParamField>
+    <ParamField body="scope" type="number">
+      Option scope (determines visibility and application)
+    </ParamField>
+    <ParamField body="comment" type="string">
+      Optional comment for this option
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional comment for the WireGuard configuration
+</ParamField>
+
+<ParamField body="node_id" type="number" required>
+  Tree node ID where this configuration will be placed in the navigation tree
+</ParamField>
+
+<ParamField body="prefixes" type="array">
+  Array of prefix configurations (only for server configurations)
+</ParamField>
+
+### Response
+
+<ResponseField name="insertId" type="number">
+  ID of the newly created WireGuard configuration
+</ResponseField>
+
+<ResponseField name="TreeinsertId" type="number">
+  ID of the created tree node
+</ResponseField>
+
+<ResponseExample>
+```json 201 Response
+{
+  "insertId": 42,
+  "TreeinsertId": 156
+}
+```
+</ResponseExample>
+
+---
+
+## Get WireGuard Configuration
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}">
+  Retrieves a WireGuard configuration with all options and settings
+</api>
+
+### Response
+
+<ResponseField name="id" type="number">
+  WireGuard configuration ID
+</ResponseField>
+
+<ResponseField name="firewall" type="number">
+  Firewall ID
+</ResponseField>
+
+<ResponseField name="wireguard" type="number">
+  Parent server ID (null for server configurations)
+</ResponseField>
+
+<ResponseField name="crt" type="number">
+  Certificate ID
+</ResponseField>
+
+<ResponseField name="install_dir" type="string">
+  Installation directory
+</ResponseField>
+
+<ResponseField name="install_name" type="string">
+  Configuration filename
+</ResponseField>
+
+<ResponseField name="public_key" type="string">
+  Encrypted public key (PGP encrypted with session public key)
+</ResponseField>
+
+<ResponseField name="private_key" type="string">
+  Encrypted private key (PGP encrypted with session public key)
+</ResponseField>
+
+<ResponseField name="server_public_key" type="string">
+  Encrypted server public key for client configurations
+</ResponseField>
+
+<ResponseField name="options" type="array">
+  Array of configuration options with name, arg, order, and scope
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "id": 42,
+  "firewall": 5,
+  "wireguard": null,
+  "crt": 10,
+  "install_dir": "/etc/wireguard",
+  "install_name": "wg0",
+  "public_key": "-----BEGIN PGP MESSAGE-----\n...",
+  "private_key": "-----BEGIN PGP MESSAGE-----\n...",
+  "options": [
+    {
+      "id": 1,
+      "name": "Address",
+      "arg": "10.0.0.1/24",
+      "order": 1,
+      "scope": 1
+    },
+    {
+      "id": 2,
+      "name": "ListenPort",
+      "arg": "51820",
+      "order": 2,
+      "scope": 1
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Update WireGuard Configuration
+
+<api method="PUT" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}">
+  Updates an existing WireGuard configuration
+</api>
+
+### Body Parameters
+
+Same as create endpoint, except `wireguard` ID is required in the path and body.
+
+### Response
+
+Returns HTTP 204 (No Content) on success.
+
+---
+
+## Delete WireGuard Configuration
+
+<api method="DELETE" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}">
+  Deletes a WireGuard configuration
+</api>
+
+### Notes
+
+- Deleting a client updates the parent server's status (requires reinstallation)
+- Deleting a server also removes all associated client configurations
+- Updates firewall prefix allocations automatically
+
+### Response
+
+Returns HTTP 204 (No Content) on success.
+
+---
+
+## Get Configuration File
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/file">
+  Generates and returns the WireGuard configuration file content
+</api>
+
+### Response
+
+<ResponseField name="cfg" type="string">
+  Complete WireGuard configuration file content in INI format
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "cfg": "[Interface]\nPrivateKey = <key>\nAddress = 10.0.0.1/24\nListenPort = 51820\n\n[Peer]\nPublicKey = <peer-key>\nAllowedIPs = 10.0.0.2/32\n"
+}
+```
+</ResponseExample>
+
+---
+
+## Additional Operations
+
+### Get Free IP Address
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/ip">
+  Returns the next available IP address in the VPN network
+</api>
+
+### Get Configuration Info
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/info">
+  Returns detailed information about the WireGuard configuration including status and relationships
+</api>
+
+### Check Usage
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/where">
+  Returns where the WireGuard configuration is used in firewall rules
+</api>

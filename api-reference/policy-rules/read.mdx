@@ -1,0 +1,170 @@
+---
+title: 'Read Policy Script'
+openapi: 'GET /fwclouds/{fwcloud}/firewalls/{firewall}/policyRules/read'
+---
+
+## Overview
+
+Retrieves the compiled firewall policy script for a specific firewall. The policy script contains the generated firewall rules based on the configured policy rules, compiled for the firewall's configured compiler type.
+
+## Policy Compilation
+
+The policy script is generated through a compilation process that:
+
+1. **Compiles policy rules** into firewall-specific commands
+2. **Supports multiple compilers**: iptables, nftables, vyos
+3. **Includes dangerous rule detection** for enhanced security
+4. **Generates executable scripts** that can be applied to the firewall
+
+### Supported Compilers
+
+<CardGroup cols={3}>
+  <Card title="iptables" icon="shield">
+    Traditional Linux firewall using iptables/ip6tables commands
+  </Card>
+  <Card title="nftables" icon="shield-halved">
+    Modern Linux firewall framework using nft commands
+  </Card>
+  <Card title="VyOS" icon="router">
+    VyOS router platform with specific configuration syntax
+  </Card>
+</CardGroup>
+
+## Dangerous Rule Detection
+
+The compilation process includes automatic detection of potentially dangerous rules:
+
+- **Warning Level**: Rules that may cause connectivity issues with specific interfaces
+- **Critical Level**: Rules that could lock out all access to the firewall
+
+Dangerous rules are identified by:
+- Matching against known dangerous patterns
+- Analyzing interface specifications
+- Checking for overly broad blocking rules
+
+<Warning>
+  Dangerous rules are detected during compilation but not when reading the script. To get dangerous rule information, you need to trigger a compilation first.
+</Warning>
+
+## Script Structure
+
+### iptables/nftables Scripts
+
+The generated script includes:
+
+1. **Header section** with shell script initialization
+2. **Greeting message** function
+3. **Firewall options** (IPv4/IPv6 forwarding, stateful/stateless mode)
+4. **Policy loading function** containing:
+   - Filter table rules (INPUT, OUTPUT, FORWARD chains)
+   - NAT table rules (SNAT, DNAT)
+   - IPv4 and IPv6 rules
+5. **Routing policy** (if configured)
+6. **Footer section** with cleanup and execution
+
+### VyOS Scripts
+
+VyOS scripts contain:
+
+1. **Configuration commands** using `set` and `delete` statements
+2. **Firewall groups** for interfaces, addresses, and services
+3. **Rule definitions** with all parameters
+4. **Interface bindings** for inbound/outbound interfaces
+
+## Response Format
+
+The response is a plain text file containing the complete executable script:
+
+```bash
+#!/bin/bash
+# FWCloud.net - Firewall Policy Script
+# Generated: [timestamp]
+
+# ... script content ...
+
+greeting_msg() {
+  log "FWCloud.net - Loading firewall policy generated: [date]"
+}
+
+options_load() {
+  echo "OPTIONS"
+  # IPv4 forwarding
+  echo 1 > /proc/sys/net/ipv4/ip_forward
+  # IPv6 forwarding
+  $SYSCTL -w net.ipv6.conf.all.forwarding=1
+}
+
+policy_load() {
+  echo "FILTER TABLE (IPv4)"
+  echo "INPUT CHAIN"
+  # Rule 1 (ID: 123)
+  $IPTABLES -A INPUT -p tcp --dport 22 -j ACCEPT
+  # ... more rules ...
+}
+
+# Main execution
+greeting_msg
+options_load
+policy_load
+```
+
+## Error Responses
+
+<ResponseField name="404" type="error">
+  **Script not found**: The policy script has not been compiled yet. You need to compile the policy rules first before reading the script.
+</ResponseField>
+
+<ResponseField name="401" type="error">
+  **Unauthorized**: Invalid or missing authentication credentials.
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  **Forbidden**: Insufficient permissions to read the policy script for this firewall.
+</ResponseField>
+
+## Usage Example
+
+<CodeGroup>
+```bash cURL
+curl -X GET \
+  'https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/read' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/read',
+  {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const script = await response.text();
+console.log(script);
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/read',
+    headers={'Authorization': 'Bearer YOUR_TOKEN'}
+)
+
+script = response.text
+print(script)
+```
+</CodeGroup>
+
+## Related Endpoints
+
+- [Download Policy Script](/api-reference/policy-rules/download) - Download the policy script as a file
+- Compile Policy Rules - Trigger policy compilation and detect dangerous rules
+- Install Policy - Install the compiled policy script to the firewall
+
+<Info>
+  The script content is stored on disk and persists between API calls. You don't need to recompile unless the policy rules have changed.
+</Info>

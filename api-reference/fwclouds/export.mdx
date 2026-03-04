@@ -1,0 +1,95 @@
+---
+title: 'Export FWCloud'
+openapi: 'POST /fwclouds/:fwcloud/export'
+---
+
+Exports a complete FWCloud configuration including all firewalls, rules, and settings as a downloadable file.
+
+## Authentication
+
+Requires authentication and export permissions on the FWCloud.
+
+## Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud to export
+</ParamField>
+
+## Response
+
+Returns a downloadable `.fwcloud` file containing the complete FWCloud configuration.
+
+<ResponseField name="file" type="binary">
+  Binary file download with filename format: `fwcloud_{id}_{timestamp}.fwcloud`
+</ResponseField>
+
+## Export Contents
+
+The exported file includes:
+
+- FWCloud configuration and metadata
+- All firewall definitions
+- Policy rules and rule groups
+- Network objects (hosts, networks, services)
+- VPN configurations (OpenVPN, WireGuard, IPSec)
+- Routing tables and rules
+- System service configurations (DHCP, Keepalived, HAProxy)
+- PKI certificates and keys
+- User access permissions
+
+## Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds/1/export \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channel_id": "progress-channel-123"
+  }' \
+  --output fwcloud_backup.fwcloud
+```
+
+## Progress Tracking
+
+<ParamField body="channel_id" type="string">
+  Optional WebSocket channel ID for receiving real-time export progress updates
+</ParamField>
+
+The export operation supports progress tracking via WebSocket channels:
+
+```json
+{
+  "status": "progress",
+  "message": "Exporting firewall configurations...",
+  "progress": 45
+}
+```
+
+## Example Response
+
+The response is a binary file download. The file will be named:
+
+```
+fwcloud_1_1709553600.fwcloud
+```
+
+## Errors
+
+<ResponseField name="404" type="error">
+  Not Found - FWCloud with specified ID does not exist
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  Forbidden - Insufficient permissions to export this FWCloud
+</ResponseField>
+
+<ResponseField name="500" type="error">
+  Internal Server Error - Export operation failed
+</ResponseField>
+
+## Use Cases
+
+- **Backup**: Create regular backups of your FWCloud configuration
+- **Migration**: Move FWCloud configurations between environments
+- **Disaster Recovery**: Maintain exportable copies for recovery scenarios
+- **Version Control**: Export and store configuration snapshots

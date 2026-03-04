@@ -1,0 +1,293 @@
+---
+title: Backup Commands
+description: Create and restore FWCloud database backups
+---
+
+## Overview
+
+Backup commands allow you to create snapshots of your FWCloud database and restore them when needed. Backups are essential for disaster recovery and before performing risky operations.
+
+## Commands
+
+### backup:create
+
+Create a new database backup.
+
+**Syntax:**
+```bash
+./fwcli backup:create [-c <comment>]
+```
+
+**Options:**
+
+| Option | Alias | Required | Description |
+|--------|-------|----------|-------------|
+| `--comment` | `-c` | No | Optional comment to describe the backup |
+
+**Description:**
+Creates a complete backup of the FWCloud database. The backup includes:
+- All database tables and data
+- Schema structure
+- Metadata and relationships
+
+The backup file is stored in the configured backup directory with a timestamp.
+
+**Examples:**
+
+1. Create a simple backup:
+```bash
+./fwcli backup:create
+```
+
+2. Create a backup with a comment:
+```bash
+./fwcli backup:create -c "Before upgrading to v2.4.0"
+```
+
+3. Pre-deployment backup:
+```bash
+./fwcli backup:create -c "Pre-deployment backup $(date +%Y-%m-%d)"
+```
+
+**Output:**
+```
+Backup created: /path/to/backup/fwcloud-backup-20260304-120530.zip
+```
+
+**Backup File Naming:**
+Backups are typically named with a timestamp:
+```
+fwcloud-backup-YYYYMMDD-HHMMSS.zip
+```
+
+---
+
+### backup:restore
+
+Restore the database from an existing backup.
+
+**Syntax:**
+```bash
+./fwcli backup:restore <id>
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `id` | Yes | Backup ID to restore |
+
+**Description:**
+Restores the database from a previously created backup. This command:
+- Stops the current database connection
+- Replaces the current database with the backup
+- Shows progress messages during restoration
+- Reports success or errors
+
+**Examples:**
+
+1. Restore from backup ID 5:
+```bash
+./fwcli backup:restore 5
+```
+
+**Output:**
+```
+Restoring backup...
+Extracting backup files...
+Restoring database schema...
+Restoring data...
+Backup restored successfully.
+```
+
+**Progress Events:**
+The restore command emits progress events:
+- `EndTaskPayload` - Displays success messages
+- `ErrorTaskPayload` - Displays error messages
+
+**Warning:**
+Restoring a backup will replace all current data. Make sure to create a backup of your current state before restoring if needed.
+
+## Backup Workflow
+
+### Before Major Changes
+
+```bash
+# Create a backup before making changes
+./fwcli backup:create -c "Before migration to v2.4"
+
+# Perform your changes
+npm run update
+
+# If something goes wrong, restore the backup
+./fwcli backup:restore <id>
+```
+
+### Regular Scheduled Backups
+
+You can create automated backups using cron:
+
+```bash
+# Daily backup at 2 AM
+0 2 * * * cd /path/to/fwcloud && ./fwcli backup:create -c "Daily automated backup"
+```
+
+### Pre-Deployment Checklist
+
+1. Create a backup:
+   ```bash
+   ./fwcli backup:create -c "Pre-deployment $(date +%Y-%m-%d)"
+   ```
+
+2. Note the backup ID from the output
+
+3. Proceed with deployment:
+   ```bash
+   npm run update
+   ```
+
+4. If deployment fails, restore:
+   ```bash
+   ./fwcli backup:restore <backup-id>
+   ```
+
+### Disaster Recovery
+
+```bash
+# List available backups (via database or file system)
+ls -lh /path/to/backups/
+
+# Restore the most recent backup
+./fwcli backup:restore <latest-backup-id>
+
+# Verify the restoration
+./fwcli route:list
+```
+
+## Backup Management
+
+### Finding Backup IDs
+
+Backup IDs are stored in the database. You can query them:
+
+```sql
+SELECT id, path, comment, created_at FROM backups ORDER BY created_at DESC;
+```
+
+### Backup Storage
+
+Backups are stored:
+- Location: Configured in the application settings
+- Format: Compressed archive (typically .zip)
+- Contents: Database dump and metadata
+
+### Backup Retention
+
+Consider implementing a retention policy:
+- Keep daily backups for 7 days
+- Keep weekly backups for 4 weeks
+- Keep monthly backups for 12 months
+
+## Best Practices
+
+1. **Regular Backups**
+   - Create backups before any major changes
+   - Schedule automated daily backups
+   - Test restore procedures regularly
+
+2. **Backup Comments**
+   - Always use descriptive comments
+   - Include the reason for the backup
+   - Add date/time information if relevant
+
+3. **Off-site Storage**
+   - Copy backup files to remote storage
+   - Use multiple backup locations
+   - Encrypt backups containing sensitive data
+
+4. **Test Restores**
+   - Periodically test backup restoration
+   - Verify data integrity after restore
+   - Document restore procedures
+
+5. **Storage Management**
+   - Monitor backup storage space
+   - Implement retention policies
+   - Remove old backups when no longer needed
+
+6. **Before Critical Operations**
+   - Always backup before:
+     - Database migrations
+     - Software upgrades
+     - Configuration changes
+     - Data imports/modifications
+
+## Integration with BackupService
+
+The CLI commands use the BackupService:
+
+```typescript
+// Service location
+src/backups/backup.service.ts
+
+// Backup model
+src/backups/backup.ts
+```
+
+The BackupService handles:
+- Backup creation and compression
+- Database export
+- File system operations
+- Progress event emission
+- Restoration logic
+
+## Error Handling
+
+Common backup errors:
+
+**"Backup not found"**
+- Invalid backup ID
+- Backup file deleted from filesystem
+- Check available backups in the database
+
+**"Insufficient disk space"**
+- Free up disk space
+- Clean up old backups
+- Check backup storage location
+
+**"Permission denied"**
+- Ensure write permissions on backup directory
+- Check filesystem permissions
+- Run with appropriate user privileges
+
+**"Database connection error"**
+- Verify database is running
+- Check database credentials
+- Review database connection configuration
+
+## Backup File Structure
+
+A typical backup archive contains:
+```
+fwcloud-backup-20260304-120530.zip
+├── database.sql          # Database dump
+├── metadata.json         # Backup metadata
+└── checksum.txt         # Integrity verification
+```
+
+## Security Considerations
+
+1. **Access Control**
+   - Restrict access to backup files
+   - Use appropriate file permissions (e.g., 600)
+   - Store in secure locations
+
+2. **Encryption**
+   - Encrypt backups at rest
+   - Use encrypted transfer for remote storage
+   - Protect backup encryption keys
+
+3. **Compliance**
+   - Follow data retention regulations
+   - Implement secure deletion of old backups
+   - Maintain backup audit logs

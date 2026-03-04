@@ -1,0 +1,535 @@
+---
+title: Docker Deployment
+description: Deploy FWCloud-API using Docker containers
+---
+
+## Overview
+
+FWCloud-API provides official Docker images for easy deployment and development. This guide covers Docker-based deployment, configuration, and best practices.
+
+## Quick Start
+
+### Using Docker Compose (Recommended)
+
+Create a `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: fwcloud
+      MYSQL_USER: fwcloud_user
+      MYSQL_PASSWORD: fwcloud_password
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - fwcloud_network
+
+  api:
+    image: ghcr.io/soltecsis/fwcloud-api:latest
+    restart: always
+    ports:
+      - "3131:3131"
+    environment:
+      NODE_ENV: prod
+      TYPEORM_HOST: db
+      TYPEORM_PORT: 3306
+      TYPEORM_DATABASE: fwcloud
+      TYPEORM_USERNAME: fwcloud_user
+      TYPEORM_PASSWORD: fwcloud_password
+      SESSION_SECRET: your_random_session_secret
+      CRYPT_SECRET: your_random_crypt_secret
+      CORS_ENABLED: "false"
+    volumes:
+      - api_config:/config
+    depends_on:
+      - db
+    networks:
+      - fwcloud_network
+
+volumes:
+  db_data:
+  api_config:
+
+networks:
+  fwcloud_network:
+    driver: bridge
+```
+
+Start the containers:
+
+```bash
+docker-compose up -d
+```
+
+<Note>
+Generate random secrets using:
+```bash
+openssl rand -hex 32
+```
+</Note>
+
+## Building from Source
+
+### Dockerfile
+
+The official Dockerfile is located at `docker/Dockerfile`:
+
+```dockerfile
+FROM node:22
+
+RUN apt update && apt install -y default-mysql-client
+RUN wget -c -O /tmp/fwcloud-api.zip https://github.com/soltecsis/fwcloud-api/archive/refs/heads/main.zip
+
+WORKDIR /tmp
+RUN unzip fwcloud-api.zip && rm -f fwcloud-api.zip
+RUN mkdir -p /opt/fwcloud
+RUN mv fwcloud-api-main /opt/fwcloud/api
+
+WORKDIR /opt/fwcloud/api
+RUN npm install && npm run build
+RUN rm -rf .github .gitignore .DS_Store .vscode tests
+
+COPY env.default .env.default
+COPY run.sh run.sh
+COPY wait-for-it/wait-for-it.sh wait-for-it.sh
+RUN chmod u+x run.sh && chmod u+x wait-for-it.sh
+
+CMD ["sh", "-c", "./run.sh"]
+```
+
+### Build Custom Image
+
+Build your own Docker image:
+
+```bash
+# Clone the repository
+git clone https://github.com/soltecsis/fwcloud-api.git
+cd fwcloud-api
+
+# Build the image
+docker build -t fwcloud-api:custom -f docker/Dockerfile docker/
+```
+
+## Configuration
+
+### Environment Variables
+
+The Docker image supports the following environment variables:
+
+#### Application
+
+```bash
+NODE_ENV=prod                    # Environment mode (dev, prod, test)
+APISRV_IP=0.0.0.0               # Bind to all interfaces
+LOG_STDOUT=true                 # Enable stdout logging
+```
+
+#### TLS/SSL
+
+```bash
+APISRV_HTTPS_CERT=/config/tls/fwcloud-api.crt
+APISRV_HTTPS_KEY=/config/tls/fwcloud-api.key
+```
+
+#### Database
+
+```bash
+TYPEORM_CONNECTION=mysql
+TYPEORM_HOST=db                 # Database host (service name in Docker Compose)
+TYPEORM_PORT=3306
+TYPEORM_DATABASE=fwcloud
+TYPEORM_USERNAME=fwcloud_user
+TYPEORM_PASSWORD=fwcloud_password
+```
+
+#### Security
+
+```bash
+SESSION_SECRET=your_session_secret
+CRYPT_SECRET=your_crypt_secret
+```
+
+#### CORS
+
+```bash
+CORS_ENABLED=false              # Enable/disable CORS
+CORS_WHITELIST=""               # Allowed origins (comma-separated)
+```
+
+### Volume Mounts
+
+#### Configuration Volume
+
+Mount `/config` to persist configuration and TLS certificates:
+
+```yaml
+volumes:
+  - api_config:/config
+```
+
+The `/config` directory contains:
+- `.env` - Environment configuration
+- `tls/` - TLS certificates (auto-generated if not present)
+
+#### Database Volume
+
+Persist database data:
+
+```yaml
+volumes:
+  - db_data:/var/lib/mysql
+```
+
+## Initialization Process
+
+The Docker container runs `run.sh` on startup, which:
+
+1. Creates `/config` directory if it doesn't exist
+2. Copies default `.env` to `/config/.env` (first run only)
+3. Creates symlink from `.env` to `/config/.env`
+4. Generates self-signed TLS certificates if not present
+5. Generates encryption keys: `node fwcli keys:generate`
+6. Runs database migrations: `node fwcli migration:run`
+7. Imports default data: `node fwcli migration:data`
+8. Starts the application: `npm start`
+
+<Note>
+Encryption keys are only generated if they don't already exist. Use `--force` to regenerate.
+</Note>
+
+## Production Deployment
+
+### Complete Docker Compose Setup
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: fwcloud
+      MYSQL_USER: fwcloud_user
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    networks:
+      - fwcloud_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ghcr.io/soltecsis/fwcloud-api:latest
+    restart: always
+    ports:
+      - "3131:3131"
+    environment:
+      NODE_ENV: prod
+      APISRV_IP: 0.0.0.0
+      TYPEORM_HOST: db
+      TYPEORM_PORT: 3306
+      TYPEORM_DATABASE: fwcloud
+      TYPEORM_USERNAME: fwcloud_user
+      TYPEORM_PASSWORD: ${DB_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      CRYPT_SECRET: ${CRYPT_SECRET}
+      CORS_ENABLED: "true"
+      CORS_WHITELIST: ${CORS_WHITELIST}
+      LOG_STDOUT: "true"
+    volumes:
+      - api_config:/config
+      - ./certs:/config/tls:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fwcloud_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3131/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  db_data:
+    driver: local
+  api_config:
+    driver: local
+
+networks:
+  fwcloud_network:
+    driver: bridge
+```
+
+### Environment File
+
+Create `.env` file for secrets:
+
+```bash
+DB_ROOT_PASSWORD=secure_root_password
+DB_PASSWORD=secure_fwcloud_password
+SESSION_SECRET=your_random_session_secret_here
+CRYPT_SECRET=your_random_crypt_secret_here
+CORS_WHITELIST=https://your-domain.com
+```
+
+<Warning>
+Never commit the `.env` file to version control. Add it to `.gitignore`.
+</Warning>
+
+### Using Production Certificates
+
+Mount your TLS certificates:
+
+```yaml
+volumes:
+  - ./certs/fwcloud-api.crt:/config/tls/fwcloud-api.crt:ro
+  - ./certs/fwcloud-api.key:/config/tls/fwcloud-api.key:ro
+```
+
+Or use Let's Encrypt with a reverse proxy:
+
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - api
+    networks:
+      - fwcloud_network
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+```
+
+## Database Initialization
+
+The container automatically waits for the database using `wait-for-it.sh` and runs migrations on startup.
+
+### Manual Database Initialization
+
+If needed, run migrations manually:
+
+```bash
+docker exec -it fwcloud-api node fwcli migration:run
+docker exec -it fwcloud-api node fwcli migration:data
+```
+
+### Database Backup
+
+Backup the database:
+
+```bash
+docker exec fwcloud-db mysqldump -u fwcloud_user -pfwcloud_password fwcloud | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+Restore from backup:
+
+```bash
+gunzip < backup_20260304_120000.sql.gz | docker exec -i fwcloud-db mysql -u fwcloud_user -pfwcloud_password fwcloud
+```
+
+## Container Management
+
+### Starting Services
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Start specific service
+docker-compose up -d api
+
+# View logs
+docker-compose logs -f api
+```
+
+### Stopping Services
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+```
+
+### Updating Services
+
+```bash
+# Pull latest images
+docker-compose pull
+
+# Recreate containers
+docker-compose up -d --force-recreate
+```
+
+### Accessing Container Shell
+
+```bash
+# Access API container
+docker exec -it fwcloud-api bash
+
+# Access database container
+docker exec -it fwcloud-db mysql -u fwcloud_user -p
+```
+
+## Monitoring and Logs
+
+### View Logs
+
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f api
+
+# Last 100 lines
+docker-compose logs --tail=100 api
+```
+
+### Health Checks
+
+Check container health:
+
+```bash
+docker-compose ps
+```
+
+Test API health:
+
+```bash
+curl http://localhost:3131/api/v1/ping
+```
+
+### Resource Usage
+
+```bash
+# View resource usage
+docker stats fwcloud-api fwcloud-db
+```
+
+## Troubleshooting
+
+### Container Won't Start
+
+1. Check logs:
+   ```bash
+   docker-compose logs api
+   ```
+
+2. Verify database connection:
+   ```bash
+   docker exec fwcloud-db mysqladmin ping -h localhost
+   ```
+
+3. Check environment variables:
+   ```bash
+   docker exec fwcloud-api env
+   ```
+
+### Database Connection Issues
+
+- Ensure database service is healthy
+- Verify credentials match between services
+- Check network connectivity:
+  ```bash
+  docker exec fwcloud-api ping db
+  ```
+
+### Permission Issues
+
+Fix volume permissions:
+
+```bash
+docker exec fwcloud-api chown -R node:node /config
+```
+
+### Migration Failures
+
+Reset and retry:
+
+```bash
+docker exec fwcloud-api node fwcli migration:rollback
+docker exec fwcloud-api node fwcli migration:run
+```
+
+## Docker Hub and Registry
+
+Official images are available on GitHub Container Registry:
+
+```bash
+# Pull latest image
+docker pull ghcr.io/soltecsis/fwcloud-api:latest
+
+# Pull specific version
+docker pull ghcr.io/soltecsis/fwcloud-api:2.3.1
+```
+
+## Best Practices
+
+### Security
+
+- Use strong random secrets
+- Don't expose database port publicly
+- Use TLS certificates from trusted CA
+- Regularly update images
+- Use Docker secrets for sensitive data
+- Run containers as non-root user (when possible)
+
+### Performance
+
+- Allocate sufficient resources:
+  ```yaml
+  deploy:
+    resources:
+      limits:
+        cpus: '2'
+        memory: 2G
+      reservations:
+        cpus: '1'
+        memory: 1G
+  ```
+- Use volumes for persistent data
+- Enable database query cache
+- Configure connection pooling
+
+### Reliability
+
+- Use health checks
+- Set restart policies
+- Implement proper depends_on conditions
+- Regular backups
+- Monitor logs and metrics
+
+## Next Steps
+
+- [Configure the application](/advanced/configuration)
+- [Set up the database](/advanced/database)
+- [Learn about testing](/advanced/testing)
+- [Production installation guide](/advanced/installation)

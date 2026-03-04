@@ -1,0 +1,303 @@
+---
+title: "IPsec Configuration Management"
+description: "Create, read, update, and delete IPsec VPN configurations"
+---
+
+Manage IPsec VPN server and client configurations using strongSwan, including tunnel creation, configuration options, and lifecycle management.
+
+## Create IPsec Configuration
+
+<api method="POST" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs">
+  Creates a new IPsec server or client configuration
+</api>
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID where the IPsec configuration will be deployed
+</ParamField>
+
+### Body Parameters
+
+<ParamField body="fwcloud" type="number" required>
+  FWCloud ID (must match path parameter)
+</ParamField>
+
+<ParamField body="firewall" type="number" required>
+  Firewall ID (must match path parameter)
+</ParamField>
+
+<ParamField body="ipsec" type="number">
+  Parent IPsec server ID. Required when creating a client configuration. Must be omitted when creating a server configuration.
+</ParamField>
+
+<ParamField body="crt" type="number" required>
+  Certificate ID. Type must be 1 for client certificates or 2 for server certificates.
+</ParamField>
+
+<ParamField body="install_dir" type="string">
+  Installation directory path on the firewall (e.g., "/etc/ipsec.d")
+</ParamField>
+
+<ParamField body="install_name" type="string">
+  Configuration filename (e.g., "tunnel.conf"). Must match pattern: `^[a-zA-Z0-9\-_.]{2,64}$`
+</ParamField>
+
+<ParamField body="options" type="array" required>
+  Array of IPsec configuration options
+  <Expandable title="Option object properties">
+    <ParamField body="name" type="string" required>
+      Option name. Valid values: `left`, `leftid`, `leftcert`, `leftsubnet`, `leftfirewall`, `leftauth`, `leftsourceip`, `right`, `rightid`, `rightcert`, `rightauth`, `rightsubnet`, `rightsourceip`, `ike`, `esp`, `keyexchange`, `dpdaction`, `dpddelay`, `rekey`, `charondebug`, `auto`, `also`, `CA Certificate`, `<<disable>>`
+    </ParamField>
+    <ParamField body="arg" type="string">
+      Option value. Must be valid for the option:
+      - `left`/`right`: IP address, %any, %defaultroute, or domain
+      - `leftid`/`rightid`: @domain or DN (quoted or unquoted)
+      - `leftcert`/`rightcert`: .crt or .pem filename
+      - `leftsubnet`/`rightsubnet`: Comma-separated IP/CIDR
+      - `leftauth`/`rightauth`: pubkey, psk, or eap
+      - `ike`/`esp`: Cipher suite proposal
+      - `keyexchange`: ikev1 or ikev2
+      - `auto`: add, start, route, or ignore
+    </ParamField>
+    <ParamField body="ipobj" type="number">
+      IP object ID if this option references an IP object
+    </ParamField>
+    <ParamField body="scope" type="number">
+      Option scope (6=server, 7=peer, 8=client-specific)
+    </ParamField>
+    <ParamField body="comment" type="string">
+      Optional comment
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional comment for the configuration
+</ParamField>
+
+<ParamField body="node_id" type="number" required>
+  Tree node ID for navigation placement
+</ParamField>
+
+<ParamField body="clone_id" type="number">
+  Clone peer options from an existing client configuration (optional)
+</ParamField>
+
+<ParamField body="prefixes" type="array">
+  Array of prefix configurations (only for server)
+</ParamField>
+
+### Response
+
+<ResponseField name="insertId" type="number">
+  ID of the newly created IPsec configuration
+</ResponseField>
+
+<ResponseField name="TreeinsertId" type="number">
+  ID of the created tree node
+</ResponseField>
+
+<ResponseExample>
+```json 201 Response
+{
+  "insertId": 58,
+  "TreeinsertId": 203
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL - Create Server
+curl -X POST \
+  https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/ipsecs \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 5,
+    "crt": 20,
+    "install_dir": "/etc",
+    "install_name": "ipsec.conf",
+    "node_id": 100,
+    "options": [
+      {"name": "left", "arg": "%defaultroute"},
+      {"name": "leftid", "arg": "@vpn.example.com"},
+      {"name": "leftcert", "arg": "server-cert.crt"},
+      {"name": "leftsubnet", "arg": "0.0.0.0/0"},
+      {"name": "right", "arg": "%any"},
+      {"name": "rightid", "arg": "%any"},
+      {"name": "rightauth", "arg": "pubkey"},
+      {"name": "rightsourceip", "arg": "10.10.10.0/24"},
+      {"name": "auto", "arg": "add"}
+    ]
+  }'
+```
+</ResponseExample>
+
+### Notes
+
+- Only one IPsec server configuration is allowed per firewall
+- Client configurations automatically get `auto` and `rightsubnet` peer options added
+- Server configurations create a virtual network interface with assigned IP
+- Certificate must have the same CA as the parent server (for clients)
+
+---
+
+## Get IPsec Configuration
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}">
+  Retrieves an IPsec configuration with all options
+</api>
+
+### Response
+
+<ResponseField name="id" type="number">
+  IPsec configuration ID
+</ResponseField>
+
+<ResponseField name="firewall" type="number">
+  Firewall ID
+</ResponseField>
+
+<ResponseField name="ipsec" type="number">
+  Parent server ID (null for servers)
+</ResponseField>
+
+<ResponseField name="crt" type="number">
+  Certificate ID
+</ResponseField>
+
+<ResponseField name="cn" type="string">
+  Certificate common name
+</ResponseField>
+
+<ResponseField name="install_dir" type="string">
+  Installation directory
+</ResponseField>
+
+<ResponseField name="install_name" type="string">
+  Configuration filename
+</ResponseField>
+
+<ResponseField name="type" type="number">
+  Configuration type (1=client, 2=server)
+</ResponseField>
+
+<ResponseField name="options" type="array">
+  Array of configuration options
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "id": 58,
+  "firewall": 5,
+  "ipsec": null,
+  "crt": 20,
+  "cn": "vpn-server",
+  "install_dir": "/etc",
+  "install_name": "ipsec.conf",
+  "type": 2,
+  "options": [
+    {"id": 1, "name": "left", "arg": "%defaultroute", "scope": 6},
+    {"id": 2, "name": "leftid", "arg": "@vpn.example.com", "scope": 6}
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Update IPsec Configuration
+
+<api method="PUT" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}">
+  Updates an existing IPsec configuration
+</api>
+
+### Body Parameters
+
+Same as create endpoint, with `ipsec` ID required in path and body.
+
+### Response
+
+Returns HTTP 204 (No Content) on success.
+
+---
+
+## Delete IPsec Configuration
+
+<api method="DELETE" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}">
+  Deletes an IPsec configuration
+</api>
+
+### Notes
+
+- Deleting a client marks the parent server as modified
+- Deleting a server removes all associated clients
+- Automatically updates firewall prefix allocations
+
+### Response
+
+Returns HTTP 204 (No Content) on success.
+
+---
+
+## Get Configuration File
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/file">
+  Generates IPsec configuration file content
+</api>
+
+### Response
+
+<ResponseField name="cfg" type="string">
+  IPsec configuration file content
+</ResponseField>
+
+<ResponseField name="ca_cert" type="string">
+  CA certificate PEM content
+</ResponseField>
+
+<ResponseField name="cert" type="string">
+  Server certificate PEM content
+</ResponseField>
+
+<ResponseField name="private_key" type="string">
+  Private key PEM content
+</ResponseField>
+
+<ResponseField name="client_certs" type="object">
+  Map of client CN to certificate PEM
+</ResponseField>
+
+<ResponseField name="cn" type="string">
+  Certificate common name
+</ResponseField>
+
+---
+
+## Additional Operations
+
+### Get Servers by Firewall
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/firewall">
+  Lists all IPsec server configurations for a firewall
+</api>
+
+### Get Free IP Address
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/ip">
+  Returns next available IP in the VPN network
+</api>
+
+### Get Configuration Info
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/info">
+  Returns detailed configuration information and status
+</api>
+
+### Check Usage
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/ipsecs/{ipsec}/where">
+  Returns where the IPsec configuration is used in firewall rules
+</api>

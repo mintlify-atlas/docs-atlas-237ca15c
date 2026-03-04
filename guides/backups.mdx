@@ -1,0 +1,695 @@
+---
+title: Backup and Restore
+description: Guide to backing up and restoring FWCloud API configurations and data
+---
+
+## Overview
+
+FWCloud API includes a comprehensive backup system that preserves:
+
+- Database contents (users, firewalls, policies, VPN configurations)
+- Policy scripts and compiled firewall configurations
+- Configuration files and application settings
+- Certificate and key data (PKI infrastructure)
+- Custom scripts and hooks
+
+Backups can be automated with cron scheduling or created manually on-demand.
+
+## Backup Architecture
+
+The backup system consists of:
+
+<CardGroup cols={2}>
+  <Card title="Backup Service" icon="gears">
+    Core service managing backup creation, restoration, and retention
+  </Card>
+  <Card title="Cron Service" icon="clock">
+    Scheduler for automated periodic backups
+  </Card>
+  <Card title="Metadata" icon="file-lines">
+    JSON files storing backup information and timestamps
+  </Card>
+  <Card title="Storage" icon="hard-drive">
+    Directory-based storage with configurable retention policies
+  </Card>
+</CardGroup>
+
+## Creating Backups
+
+### Manual Backup via CLI
+
+Create a backup using the command-line interface:
+
+```bash
+node fwcli backup:create --comment "Pre-upgrade backup"
+```
+
+Output:
+```
+✓ Backup created: /opt/fwcloud-api/backups/1709548800000
+```
+
+The backup ID is a Unix timestamp (milliseconds since epoch).
+
+### Manual Backup via API
+
+```bash
+curl -X POST https://api.fwcloud.net/backups \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "comment": "Pre-upgrade backup"
+  }'
+```
+
+Response:
+```json
+{
+  "id": 1709548800000,
+  "path": "/opt/fwcloud-api/backups/1709548800000",
+  "date": "2026-03-04T12:00:00Z",
+  "comment": "Pre-upgrade backup",
+  "size": 125829120,
+  "imported": false
+}
+```
+
+## Automated Backups
+
+Configure automated backups with cron scheduling.
+
+### Backup Configuration
+
+The backup system is configured in the application's config file:
+
+```json
+{
+  "backup": {
+    "data_dir": "./backups",
+    "config_file": "backup.json",
+    "schedule": "0 0 2 * * *",
+    "max_copies": 10,
+    "max_days": 30
+  }
+}
+```
+
+<ParamField path="schedule" type="string" default="0 0 2 * * *">
+  Cron expression for backup schedule
+  
+  Format: `second minute hour day month dayOfWeek`
+  
+  Examples:
+  - `0 0 2 * * *` - Daily at 2:00 AM
+  - `0 0 */6 * * *` - Every 6 hours
+  - `0 30 1 * * 0` - Weekly on Sunday at 1:30 AM
+</ParamField>
+
+<ParamField path="max_copies" type="number" default="10">
+  Maximum number of backups to retain
+  
+  Set to `0` to disable copy-based retention
+</ParamField>
+
+<ParamField path="max_days" type="number" default="30">
+  Maximum age of backups in days
+  
+  Set to `0` to disable age-based retention
+</ParamField>
+
+### Update Backup Schedule
+
+Modify the backup configuration:
+
+```bash
+curl -X PUT https://api.fwcloud.net/backups/config \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "schedule": "0 0 3 * * *",
+    "max_copies": 15,
+    "max_days": 60
+  }'
+```
+
+The new schedule takes effect immediately without restarting the application.
+
+### Cron Schedule Examples
+
+<Tabs>
+  <Tab title="Daily">
+    ```json
+    {
+      "schedule": "0 0 2 * * *",
+      "description": "Daily at 2:00 AM"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Hourly">
+    ```json
+    {
+      "schedule": "0 0 * * * *",
+      "description": "Every hour on the hour"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Every 6 Hours">
+    ```json
+    {
+      "schedule": "0 0 */6 * * *",
+      "description": "Every 6 hours (00:00, 06:00, 12:00, 18:00)"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Weekly">
+    ```json
+    {
+      "schedule": "0 0 3 * * 0",
+      "description": "Weekly on Sunday at 3:00 AM"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Retention Policy
+
+FWCloud applies two types of retention policies:
+
+### Copy-Based Retention
+
+Keeps only the N most recent backups:
+
+```typescript
+if (backupCount > max_copies) {
+  // Delete oldest backups
+  const backupsToDelete = sortedBackups.slice(0, backupCount - max_copies);
+  for (const backup of backupsToDelete) {
+    await backup.destroy();
+  }
+}
+```
+
+Example: With `max_copies: 10`, only the 10 most recent backups are kept.
+
+### Age-Based Retention
+
+Deletes backups older than a specified number of days:
+
+```typescript
+const expirationDate = moment().subtract(max_days, 'days');
+for (const backup of backups) {
+  if (backup.date.isBefore(expirationDate)) {
+    await backup.destroy();
+  }
+}
+```
+
+Example: With `max_days: 30`, backups older than 30 days are deleted.
+
+### Combined Retention
+
+Both policies can be active simultaneously:
+
+```json
+{
+  "max_copies": 10,
+  "max_days": 30
+}
+```
+
+This configuration:
+1. Keeps at most 10 backups
+2. Deletes backups older than 30 days
+3. Applies whichever limit is reached first
+
+<Info>
+  The retention job runs daily at midnight (`0 0 0 * * *`) regardless of the backup schedule.
+</Info>
+
+## Listing Backups
+
+View all available backups:
+
+```bash
+curl https://api.fwcloud.net/backups \
+  -H "Authorization: Bearer <token>"
+```
+
+Response:
+```json
+[
+  {
+    "id": 1709548800000,
+    "path": "/opt/fwcloud-api/backups/1709548800000",
+    "date": "2026-03-04T12:00:00Z",
+    "comment": "Pre-upgrade backup",
+    "size": 125829120,
+    "imported": false
+  },
+  {
+    "id": 1709462400000,
+    "path": "/opt/fwcloud-api/backups/1709462400000",
+    "date": "2026-03-03T12:00:00Z",
+    "comment": "Cron backup",
+    "size": 124301568,
+    "imported": false
+  }
+]
+```
+
+## Restoring Backups
+
+<Warning>
+  Restoring a backup will **completely replace** the current database and configuration. All current data will be lost. Create a backup before restoring!
+</Warning>
+
+### Restore via CLI
+
+```bash
+node fwcli backup:restore --id 1709548800000
+```
+
+The restore process:
+
+<Steps>
+  <Step title="Verify backup exists">
+    Checks that the backup directory contains valid metadata.
+  </Step>
+
+  <Step title="Stop application services">
+    Stops the API server to prevent database corruption.
+  </Step>
+
+  <Step title="Restore database">
+    Drops existing database and imports backup SQL dump.
+  </Step>
+
+  <Step title="Restore files">
+    Copies policy scripts, certificates, and configuration files.
+  </Step>
+
+  <Step title="Restart services">
+    Restarts the API server with restored configuration.
+  </Step>
+</Steps>
+
+### Restore via API
+
+```bash
+curl -X POST https://api.fwcloud.net/backups/1709548800000/restore \
+  -H "Authorization: Bearer <token>"
+```
+
+The API will return immediately and restore in the background:
+
+```json
+{
+  "status": "restoring",
+  "backup_id": 1709548800000,
+  "message": "Restore in progress. The API will restart when complete."
+}
+```
+
+<Info>
+  The API server will automatically restart after restoration is complete. This may take several minutes for large backups.
+</Info>
+
+## Exporting Backups
+
+Export a backup as a ZIP file for offsite storage or transfer:
+
+```bash
+curl -X POST https://api.fwcloud.net/backups/1709548800000/export \
+  -H "Authorization: Bearer <token>" \
+  -o backup-1709548800000.zip
+```
+
+The exported ZIP contains:
+- `metadata.json` - Backup information
+- `database.sql` - Database dump
+- `files/` - Policy scripts and configuration files
+- `certs/` - SSL certificates and keys
+
+### Export with TTL
+
+Create a temporary export that auto-deletes:
+
+```bash
+curl -X POST https://api.fwcloud.net/backups/1709548800000/export?ttl=3600000 \
+  -H "Authorization: Bearer <token>" \
+  -o backup.zip
+```
+
+The file will be deleted from the server after 1 hour (3600000 ms).
+
+## Importing Backups
+
+Import a backup from another FWCloud instance:
+
+<Steps>
+  <Step title="Upload backup archive">
+    ```bash
+    curl -X POST https://api.fwcloud.net/backups/import \
+      -H "Authorization: Bearer <token>" \
+      -F "file=@backup-1709548800000.zip"
+    ```
+  </Step>
+
+  <Step title="Verify import">
+    The API extracts and validates the backup:
+    
+    ```json
+    {
+      "id": 1709635200000,
+      "imported": true,
+      "original_id": 1709548800000,
+      "comment": "Pre-upgrade backup",
+      "date": "2026-03-04T12:00:00Z"
+    }
+    ```
+    
+    Note: The backup receives a new ID but preserves the original timestamp in metadata.
+  </Step>
+
+  <Step title="Restore if needed">
+    Once imported, the backup can be restored like any other backup:
+    
+    ```bash
+    node fwcli backup:restore --id 1709635200000
+    ```
+  </Step>
+</Steps>
+
+## Deleting Backups
+
+Manually delete a backup:
+
+```bash
+curl -X DELETE https://api.fwcloud.net/backups/1709548800000 \
+  -H "Authorization: Bearer <token>"
+```
+
+This permanently removes:
+- Backup directory and all contents
+- Database dump file
+- Associated metadata
+
+<Warning>
+  Deleted backups cannot be recovered unless you have an external copy.
+</Warning>
+
+## Backup Contents
+
+Each backup includes:
+
+### Database Dump
+
+```bash
+backups/1709548800000/database.sql
+```
+
+Complete MySQL dump including:
+- User accounts and permissions
+- FWCloud configurations
+- Firewall definitions
+- Policy rules and groups
+- VPN configurations (OpenVPN, WireGuard, IPSec)
+- IP objects and groups
+- Network interfaces
+- Certificate and key references
+
+### Policy Data
+
+```bash
+backups/1709548800000/policy/
+├── 1/              # FWCloud ID
+│   ├── 1/          # Firewall ID
+│   │   ├── firewall.sh
+│   │   └── compile.log
+│   └── 2/
+│       ├── firewall.sh
+│       └── compile.log
+└── 2/
+    └── 1/
+        ├── firewall.sh
+        └── compile.log
+```
+
+### Configuration Files
+
+```bash
+backups/1709548800000/config/
+├── config.json
+├── backup.json
+└── .env
+```
+
+### Certificates and Keys
+
+```bash
+backups/1709548800000/certs/
+├── ca/
+│   ├── ca.crt
+│   └── ca.key
+├── server/
+│   ├── server.crt
+│   └── server.key
+└── api/
+    ├── api.crt
+    └── api.key
+```
+
+### Metadata
+
+```json
+{
+  "timestamp": 1709548800000,
+  "date": "2026-03-04T12:00:00.000Z",
+  "version": "2.3.1",
+  "comment": "Pre-upgrade backup",
+  "imported": false,
+  "size": 125829120,
+  "created_by": "cron"
+}
+```
+
+## Monitoring Backups
+
+Monitor backup operations through logs:
+
+```bash
+# View backup service logs
+tail -f /var/log/fwcloud/backup.log
+
+# Check cron job execution
+journalctl -u fwcloud-api | grep BACKUP
+```
+
+Log entries:
+```
+[INFO] Starting BACKUP job.
+[INFO] BACKUP job completed: 1709548800000
+[INFO] Starting RETENTION BACKUP job.
+[INFO] BACKUPS removed: 2
+```
+
+### Backup Metrics
+
+Retrieve backup statistics:
+
+```bash
+curl https://api.fwcloud.net/backups/stats \
+  -H "Authorization: Bearer <token>"
+```
+
+Response:
+```json
+{
+  "total_backups": 10,
+  "total_size": 1258291200,
+  "oldest_backup": "2026-02-03T12:00:00Z",
+  "newest_backup": "2026-03-04T12:00:00Z",
+  "imported_backups": 1,
+  "next_scheduled": "2026-03-05T02:00:00Z"
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Backup Strategy">
+    - Schedule backups during low-usage periods (e.g., 2:00 AM)
+    - Keep at least 7 daily backups for weekly recovery
+    - Maintain 4 weekly backups for monthly recovery
+    - Store critical backups offsite or in cloud storage
+    - Test restore procedures regularly (at least quarterly)
+    - Document backup and restore processes
+    - Monitor backup job completion
+  </Accordion>
+
+  <Accordion title="Retention Policy">
+    - Balance storage costs with recovery needs
+    - For production: `max_copies: 30, max_days: 90`
+    - For development: `max_copies: 10, max_days: 30`
+    - Adjust based on change frequency
+    - Keep pre-upgrade backups longer
+    - Consider 3-2-1 rule: 3 copies, 2 different media, 1 offsite
+  </Accordion>
+
+  <Accordion title="Security">
+    - Encrypt backup archives before offsite transfer
+    - Restrict backup directory permissions (700)
+    - Rotate backup encryption keys periodically
+    - Store credentials separately from backups
+    - Audit backup access logs
+    - Secure backup transfer channels (SFTP, S3 with SSL)
+  </Accordion>
+
+  <Accordion title="Storage Management">
+    - Monitor backup directory disk usage
+    - Set filesystem quotas to prevent runaway growth
+    - Compress old backups for long-term storage
+    - Use separate disk/volume for backups
+    - Implement filesystem snapshots for additional safety
+    - Archive old backups to cold storage
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Backup Creation Fails
+
+**Problem**: Backup job fails with database error
+
+**Solution**:
+```bash
+# Check database connectivity
+mysql -u fwcloud -p -e "SELECT 1;"
+
+# Verify database permissions
+mysql -u root -p -e "SHOW GRANTS FOR 'fwcloud'@'localhost';"
+
+# Check disk space
+df -h /opt/fwcloud-api/backups
+
+# Review backup logs
+tail -f /var/log/fwcloud/backup.log
+```
+
+### Restore Fails
+
+**Problem**: Database restore fails with foreign key errors
+
+**Solution**:
+```bash
+# Disable foreign key checks during restore
+mysql -u fwcloud -p fwcloud -e "SET FOREIGN_KEY_CHECKS=0;"
+mysql -u fwcloud -p fwcloud < backup/database.sql
+mysql -u fwcloud -p fwcloud -e "SET FOREIGN_KEY_CHECKS=1;"
+```
+
+### Backup Too Large
+
+**Problem**: Backups consume excessive disk space
+
+**Solution**:
+- Reduce `max_copies` in configuration
+- Decrease `max_days` retention period
+- Export and compress old backups:
+  ```bash
+  tar -czf backup-archive.tar.gz /opt/fwcloud-api/backups/1709548800000
+  ```
+- Move archived backups to cheaper storage
+- Clean up old policy compilation logs
+
+### Cron Job Not Running
+
+**Problem**: Scheduled backups not executing
+
+**Solution**:
+```bash
+# Check cron service status
+systemctl status fwcloud-api
+
+# Verify backup configuration
+curl https://api.fwcloud.net/backups/config \
+  -H "Authorization: Bearer <token>"
+
+# Manually trigger backup to test
+node fwcli backup:create --comment "Test backup"
+
+# Review application logs
+tail -f /var/log/fwcloud/fwcloud-api.log | grep cron
+```
+
+## Disaster Recovery
+
+Complete disaster recovery procedure:
+
+<Steps>
+  <Step title="Prepare clean system">
+    Install fresh FWCloud API on new server:
+    ```bash
+    git clone https://github.com/soltecsis/fwcloud-api.git
+    cd fwcloud-api
+    npm install
+    npm run build
+    ```
+  </Step>
+
+  <Step title="Stop service">
+    ```bash
+    npm run stop
+    ```
+  </Step>
+
+  <Step title="Restore backup">
+    Copy backup archive to new server and restore:
+    ```bash
+    # Import backup
+    curl -X POST http://localhost:3131/backups/import \
+      -F "file=@backup-1709548800000.zip"
+    
+    # Restore backup
+    node fwcli backup:restore --id <new_backup_id>
+    ```
+  </Step>
+
+  <Step title="Verify restoration">
+    Check that all data is restored:
+    ```bash
+    # Start service
+    npm start
+    
+    # Test API
+    curl http://localhost:3131/api/v1/version
+    
+    # Verify database
+    mysql -u fwcloud -p -e "USE fwcloud; SHOW TABLES;"
+    ```
+  </Step>
+
+  <Step title="Update firewall connections">
+    If server IP changed, update firewall communication settings.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup Guide" icon="rocket" href="/guides/setup">
+    Initial installation and configuration
+  </Card>
+  <Card title="Firewall Management" icon="shield" href="/guides/firewall-management">
+    Managing firewalls after restore
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/backups">
+    Complete backup API documentation
+  </Card>
+  <Card title="Security" icon="lock" href="/guides/setup">
+    Securing backups and credentials
+  </Card>
+</CardGroup>

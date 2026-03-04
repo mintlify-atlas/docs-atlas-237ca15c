@@ -1,0 +1,237 @@
+---
+title: "WireGuard Client Management"
+api: "GET /api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/clients"
+description: "Manage WireGuard client configurations and peer options"
+---
+
+Manage WireGuard VPN clients associated with a server configuration, including client listing and peer-specific options management.
+
+## List WireGuard Clients
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/clients">
+  Retrieves all client configurations for a WireGuard server
+</api>
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+<ParamField path="wireguard" type="number" required>
+  WireGuard server configuration ID
+</ParamField>
+
+### Response
+
+<ResponseField name="clients" type="array">
+  Array of client configurations
+  <Expandable title="Client object properties">
+    <ResponseField name="id" type="number">
+      Client configuration ID
+    </ResponseField>
+    <ResponseField name="cn" type="string">
+      Client common name from certificate
+    </ResponseField>
+    <ResponseField name="wireguard" type="number">
+      Parent server ID
+    </ResponseField>
+    <ResponseField name="public_key" type="string">
+      Client public key
+    </ResponseField>
+    <ResponseField name="address" type="string">
+      Client VPN IP address
+    </ResponseField>
+    <ResponseField name="status" type="number">
+      Configuration status flags
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      Creation timestamp
+    </ResponseField>
+    <ResponseField name="updated_at" type="string">
+      Last update timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+[
+  {
+    "id": 43,
+    "cn": "laptop-client-001",
+    "wireguard": 42,
+    "public_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+    "address": "10.0.0.2",
+    "status": 0,
+    "created_at": "2026-03-04T10:00:00.000Z",
+    "updated_at": "2026-03-04T10:00:00.000Z"
+  },
+  {
+    "id": 44,
+    "cn": "mobile-client-002",
+    "wireguard": 42,
+    "public_key": "yUICA6sbcpVwoI5iupekc7f798RkMFSu2OBC5nZrq9Eh=",
+    "address": "10.0.0.3",
+    "status": 1,
+    "created_at": "2026-03-04T11:30:00.000Z",
+    "updated_at": "2026-03-04T15:45:00.000Z"
+  }
+]
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X GET \
+  https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/wireguards/42/clients
+```
+</ResponseExample>
+
+---
+
+## Get Client Peer Options
+
+<api method="GET" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/clients/options">
+  Retrieves peer-specific options for a WireGuard client
+</api>
+
+### Query Parameters
+
+<ParamField query="wireguard" type="number" required>
+  Server configuration ID
+</ParamField>
+
+<ParamField query="wireguard_cli" type="number" required>
+  Client configuration ID
+</ParamField>
+
+### Response
+
+<ResponseField name="publicKey" type="string">
+  Client public key (PGP encrypted with session key)
+</ResponseField>
+
+<ResponseField name="allowedIPs" type="string">
+  Allowed IP ranges for this peer
+</ResponseField>
+
+<ResponseField name="endpoint" type="string">
+  Endpoint address for this peer
+</ResponseField>
+
+<ResponseField name="persistentKeepalive" type="number">
+  Keepalive interval in seconds
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "publicKey": "-----BEGIN PGP MESSAGE-----\n...",
+  "allowedIPs": "10.0.0.2/32",
+  "persistentKeepalive": 25
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X GET \
+  'https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/wireguards/42/clients/options?wireguard=42&wireguard_cli=43'
+```
+</ResponseExample>
+
+---
+
+## Update Client Peer Options
+
+<api method="PUT" endpoint="/api/fwclouds/{fwcloud}/firewalls/{firewall}/vpn/wireguards/{wireguard}/clients/options">
+  Updates peer-specific options for a WireGuard client
+</api>
+
+### Body Parameters
+
+<ParamField body="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField body="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+<ParamField body="wireguard" type="number" required>
+  Server configuration ID
+</ParamField>
+
+<ParamField body="wireguard_cli" type="number" required>
+  Client configuration ID
+</ParamField>
+
+<ParamField body="options" type="array" required>
+  Array of peer option objects with scope 3 (client-specific)
+  <Expandable title="Option properties">
+    <ParamField body="name" type="string" required>
+      Option name (e.g., "AllowedIPs", "PersistentKeepalive")
+    </ParamField>
+    <ParamField body="arg" type="string">
+      Option value
+    </ParamField>
+    <ParamField body="comment" type="string">
+      Optional comment
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+Returns HTTP 204 (No Content) on success.
+
+<ResponseExample>
+```bash cURL
+curl -X PUT \
+  https://api.fwcloud.net/api/fwclouds/1/firewalls/5/vpn/wireguards/42/clients/options \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "fwcloud": 1,
+    "firewall": 5,
+    "wireguard": 42,
+    "wireguard_cli": 43,
+    "options": [
+      {
+        "name": "AllowedIPs",
+        "arg": "10.0.0.2/32,192.168.100.0/24"
+      },
+      {
+        "name": "PersistentKeepalive",
+        "arg": "30"
+      }
+    ]
+  }'
+```
+</ResponseExample>
+
+## Notes
+
+- Client peer options are stored with scope 3 to distinguish them from server and interface options
+- Updating client options marks the server configuration as modified (requires reinstallation)
+- Public keys are PGP encrypted for secure transmission
+- The `AllowedIPs` option on the server side determines which traffic the server will accept from this client
+- Changes to peer options require a server configuration reload to take effect
+
+## Client Option Scopes
+
+- **Scope 1**: Server interface options
+- **Scope 2**: Server peer options
+- **Scope 3**: Client-specific peer options (set by these endpoints)
+
+## Workflow
+
+1. Create WireGuard server configuration
+2. Create client configurations (one per peer)
+3. Configure client-specific peer options (AllowedIPs, keepalive, etc.)
+4. Install/reinstall server configuration to apply changes
+5. Generate client installers for distribution

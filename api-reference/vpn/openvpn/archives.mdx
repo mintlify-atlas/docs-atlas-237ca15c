@@ -1,0 +1,151 @@
+---
+title: "OpenVPN History Archives"
+description: "Manage OpenVPN connection history archival and configuration"
+---
+
+Manage the archival of OpenVPN connection history data. These endpoints allow you to trigger manual archival operations and configure automatic archival settings including retention policies.
+
+## Archive History
+
+<api method="POST" endpoint="/api/openvpnarchives">
+  Triggers an archive operation for OpenVPN connection history
+</api>
+
+Initiates an archival process that moves old OpenVPN status history records from the active database to archive storage based on the configured archive_days threshold.
+
+### Response
+
+<ResponseField name="rows" type="number">
+  Number of history records archived during the operation
+</ResponseField>
+
+<ResponseExample>
+```json 201 Response
+{
+  "rows": 15420
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X POST \
+  https://api.fwcloud.net/api/openvpnarchives \
+  -H 'Content-Type: application/json'
+```
+</ResponseExample>
+
+### Notes
+
+- Archives records older than the configured `archive_days` setting
+- Operation runs asynchronously and reports progress via WebSocket channel
+- Requires admin privileges
+- Returns HTTP 201 on successful completion
+
+---
+
+## Get Archive Configuration
+
+<api method="GET" endpoint="/api/openvpnarchives/config">
+  Retrieves current OpenVPN archive configuration settings
+</api>
+
+Returns the current configuration for OpenVPN history archival, including how long before records are archived and how long archived records are retained.
+
+### Response
+
+<ResponseField name="archive_days" type="number">
+  Number of days after which history records are moved to archive storage
+</ResponseField>
+
+<ResponseField name="retention_days" type="number">
+  Number of days after which archived records are permanently deleted
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "archive_days": 90,
+  "retention_days": 365
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X GET \
+  https://api.fwcloud.net/api/openvpnarchives/config
+```
+</ResponseExample>
+
+---
+
+## Update Archive Configuration
+
+<api method="PUT" endpoint="/api/openvpnarchives/config">
+  Updates OpenVPN archive configuration settings
+</api>
+
+Modifies the archival and retention policy for OpenVPN connection history.
+
+### Body Parameters
+
+<ParamField body="archive_days" type="number" required>
+  Number of days to keep records in active history before archiving. Must be a positive integer.
+</ParamField>
+
+<ParamField body="retention_days" type="number" required>
+  Number of days to retain archived records before permanent deletion. Must be greater than archive_days.
+</ParamField>
+
+### Response
+
+<ResponseField name="archive_days" type="number">
+  Updated archive threshold in days
+</ResponseField>
+
+<ResponseField name="retention_days" type="number">
+  Updated retention period in days
+</ResponseField>
+
+<ResponseExample>
+```json 201 Response
+{
+  "archive_days": 120,
+  "retention_days": 730
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X PUT \
+  https://api.fwcloud.net/api/openvpnarchives/config \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "archive_days": 120,
+    "retention_days": 730
+  }'
+```
+</ResponseExample>
+
+### Notes
+
+- Configuration changes apply to future archival operations
+- Existing archived data is not affected by configuration changes
+- Requires admin privileges for all archive configuration endpoints
+- Settings are persisted in the OpenVPN service configuration
+
+## Archive Workflow
+
+1. **Active History**: New connection records stored in active database
+2. **Archive Threshold**: Records older than `archive_days` become eligible for archival
+3. **Archive Storage**: Manual or automatic archival moves records to archive storage
+4. **Retention Policy**: Archived records older than `retention_days` are permanently deleted
+
+## Best Practices
+
+- Set `archive_days` based on your active monitoring needs (typically 30-90 days)
+- Set `retention_days` based on compliance requirements (typically 365-730 days)
+- Schedule regular archival operations during low-traffic periods
+- Monitor archive operation results to ensure successful completion

@@ -1,0 +1,235 @@
+---
+title: Restore Backup
+description: Restore the FWCloud API database from a backup
+---
+
+## Restore Backup
+
+`POST /backups/:backup/restore`
+
+Restores the FWCloud API database from a previously created backup. This operation will **completely replace** the current database with the backup data.
+
+<Warning>
+  **DANGER: Destructive Operation**
+  
+  Restoring a backup will:
+  - Delete ALL current data
+  - Replace with backup data
+  - Terminate all active sessions
+  - Restart the API server
+  
+  This operation cannot be undone. Always create a backup before restoring.
+</Warning>
+
+### Path Parameters
+
+<ParamField path="backup" type="number" required>
+  The ID of the backup to restore
+</ParamField>
+
+### Request Body
+
+<ParamField body="confirm" type="boolean" required>
+  Must be `true` to confirm the destructive operation
+</ParamField>
+
+<ParamField body="pre_restore_backup" type="boolean" default="true">
+  Create a backup before restoring (highly recommended)
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.local/backups/42/restore \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "confirm": true,
+    "pre_restore_backup": true
+  }'
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the restore was successful
+</ResponseField>
+
+<ResponseField name="backup_id" type="number">
+  ID of the restored backup
+</ResponseField>
+
+<ResponseField name="backup_filename" type="string">
+  Filename of the restored backup
+</ResponseField>
+
+<ResponseField name="pre_restore_backup_id" type="number">
+  ID of the backup created before restoration (if enabled)
+</ResponseField>
+
+<ResponseField name="restore_time" type="number">
+  Time taken to restore in milliseconds
+</ResponseField>
+
+<ResponseField name="server_restart_required" type="boolean">
+  Whether the API server will restart (always true)
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "backup_id": 42,
+  "backup_filename": "backup-20240304-153045.sql.gz",
+  "pre_restore_backup_id": 45,
+  "restore_time": 8534,
+  "server_restart_required": true
+}
+```
+
+## Restore Process
+
+The restore operation follows these steps:
+
+<Steps>
+  <Step title="Pre-restore Backup">
+    If `pre_restore_backup` is true, creates a backup of the current database before proceeding.
+  </Step>
+  
+  <Step title="Validation">
+    Validates that:
+    - Backup file exists and is readable
+    - Backup file is not corrupted
+    - Database connection is available
+  </Step>
+  
+  <Step title="Database Restoration">
+    - Terminates all active connections
+    - Drops existing database tables
+    - Restores schema and data from backup
+    - Rebuilds indexes and constraints
+  </Step>
+  
+  <Step title="Server Restart">
+    Automatically restarts the API server to reload configuration and clear caches.
+  </Step>
+</Steps>
+
+## Post-Restore Actions
+
+<CardGroup cols={2}>
+  <Card title="Verify Data" icon="check">
+    Log in and verify that expected FWClouds and configurations are present
+  </Card>
+  <Card title="Test Connectivity" icon="network-wired">
+    Test firewall communication and policy compilation
+  </Card>
+  <Card title="Review Logs" icon="file-lines">
+    Check API logs for any errors during restore
+  </Card>
+  <Card title="Notify Users" icon="bell">
+    Inform users that data has been restored to a previous state
+  </Card>
+</CardGroup>
+
+## Disaster Recovery Example
+
+```bash
+# 1. Stop incoming traffic (optional)
+sudo systemctl stop nginx
+
+# 2. Create a pre-restore backup
+curl -X POST https://api.fwcloud.local/backups \
+  -d '{"comment": "Pre-disaster-recovery backup"}'
+
+# 3. Restore from the last known good backup
+curl -X POST https://api.fwcloud.local/backups/40/restore \
+  -d '{"confirm": true, "pre_restore_backup": false}'
+
+# 4. Wait for server restart (30-60 seconds)
+sleep 60
+
+# 5. Verify restoration
+curl https://api.fwcloud.local/version
+
+# 6. Resume traffic
+sudo systemctl start nginx
+```
+
+## Error Responses
+
+<Accordion title="400 Bad Request">
+  Confirmation not provided or invalid parameters.
+  
+  ```json
+  {
+    "message": "Restore confirmation required",
+    "details": "Set confirm=true to proceed with restore"
+  }
+  ```
+</Accordion>
+
+<Accordion title="404 Not Found">
+  Backup with the specified ID does not exist.
+  
+  ```json
+  {
+    "message": "Backup not found",
+    "backup_id": 99
+  }
+  ```
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+  Restore failed due to database error or corrupted backup.
+  
+  ```json
+  {
+    "message": "Restore failed",
+    "error": "Database connection lost during restore",
+    "pre_restore_backup_id": 45
+  }
+  ```
+  
+  If a restore fails, the database may be in an inconsistent state. Use the pre-restore backup to recover.
+</Accordion>
+
+## Best Practices
+
+<Tip>
+  **Always enable pre-restore backup** unless you have a very recent manual backup. The small time cost is worth the safety net.
+</Tip>
+
+<Steps>
+  <Step title="Test in Staging">
+    If possible, test the restore procedure in a staging environment first.
+  </Step>
+  
+  <Step title="Maintenance Window">
+    Schedule restores during maintenance windows when users won't be affected.
+  </Step>
+  
+  <Step title="Communication">
+    Notify users before and after the restore operation.
+  </Step>
+  
+  <Step title="Verification">
+    Have a checklist of critical data to verify after restoration.
+  </Step>
+</Steps>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Create Backup" icon="floppy-disk" href="/api-reference/backups/create">
+    Create a new backup before restoring
+  </Card>
+  <Card title="List Backups" icon="list" href="/api-reference/overview">
+    View all available backups
+  </Card>
+  <Card title="CLI Restore" icon="terminal" href="/cli/backup">
+    Restore from command line
+  </Card>
+  <Card title="Disaster Recovery" icon="life-ring" href="/guides/backups">
+    Complete disaster recovery guide
+  </Card>
+</CardGroup>

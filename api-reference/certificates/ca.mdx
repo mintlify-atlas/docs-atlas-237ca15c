@@ -1,0 +1,134 @@
+---
+title: Certificate Authority Endpoints
+description: Manage certificate authorities for VPN configurations
+---
+
+## Overview
+
+Certificate Authority (CA) endpoints allow you to manage CAs used for VPN certificate generation. FWCloud API uses Easy-RSA 3.x for PKI management.
+
+## Update Certificate Authority
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="ca" type="number" required>
+  Certificate Authority ID
+</ParamField>
+
+<ParamField body="cn" type="string">
+  Common Name for the CA
+</ParamField>
+
+<ParamField body="days" type="number">
+  Validity period in days (default: 3650)
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional comment
+</ParamField>
+
+### Request
+
+```bash
+curl -X PUT https://api.fwcloud.local/fwclouds/1/cas/1 \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "cn": "FWCloud Root CA",
+    "days": 7300,
+    "comment": "Updated CA validity"
+  }'
+```
+
+### Response
+
+<ResponseField name="id" type="number">
+  Certificate Authority ID
+</ResponseField>
+
+<ResponseField name="fwCloud" type="number">
+  Parent FWCloud ID
+</ResponseField>
+
+<ResponseField name="cn" type="string">
+  Common Name
+</ResponseField>
+
+<ResponseField name="days" type="number">
+  Validity period in days
+</ResponseField>
+
+<ResponseField name="status" type="number">
+  CA status (1 = active)
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Creation timestamp
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  Last update timestamp
+</ResponseField>
+
+```json
+{
+  "id": 1,
+  "fwCloud": 1,
+  "cn": "FWCloud Root CA",
+  "days": 7300,
+  "status": 1,
+  "created_at": "2024-01-15T10:00:00.000Z",
+  "updated_at": "2024-03-04T15:30:00.000Z"
+}
+```
+
+## CA Structure
+
+Each CA maintains the following directory structure:
+
+```
+fwcloud-data/
+  pki/
+    ca-{id}/
+      ca.crt       # CA certificate
+      ca.key       # CA private key (encrypted)
+      index.txt    # Certificate database
+      serial       # Next serial number
+      certs/       # Issued certificates
+      crl/         # Certificate revocation lists
+```
+
+## Error Responses
+
+<Accordion title="404 Not Found">
+  The specified CA does not exist.
+  
+  ```json
+  {
+    "message": "CA not found"
+  }
+  ```
+</Accordion>
+
+<Accordion title="403 Forbidden">
+  User does not have permission to modify this CA.
+  
+  ```json
+  {
+    "message": "Access denied"
+  }
+  ```
+</Accordion>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Certificates" icon="certificate" href="/api-reference/certificates/crt">
+    Manage certificates issued by this CA
+  </Card>
+  <Card title="OpenVPN" icon="shield" href="/api-reference/vpn/openvpn/manage">
+    Use CA certificates for OpenVPN configuration
+  </Card>
+</CardGroup>

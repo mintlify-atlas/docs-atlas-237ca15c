@@ -1,0 +1,140 @@
+---
+title: "OpenVPN Status History"
+api: "GET /api/fwclouds/{fwcloud}/firewalls/{firewall}/openvpn/{openvpn}/history"
+description: "Retrieve OpenVPN connection status history with filtering options"
+---
+
+Retrieves historical connection status data for an OpenVPN server, including client connections, disconnections, and connection duration. Supports filtering by time range, client name, and IP address.
+
+## Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+<ParamField path="openvpn" type="number" required>
+  OpenVPN server configuration ID
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="starts_at" type="number">
+  Unix timestamp (milliseconds) for the start of the time range. Defaults to epoch (0) if not provided.
+</ParamField>
+
+<ParamField query="ends_at" type="number">
+  Unix timestamp (milliseconds) for the end of the time range. Defaults to current time if not provided.
+</ParamField>
+
+<ParamField query="name" type="string">
+  Filter results by client common name (CN)
+</ParamField>
+
+<ParamField query="address" type="string">
+  Filter results by client IP address. Must be a valid IP address format.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="array">
+  Array of connection history records
+  <Expandable title="properties">
+    <ResponseField name="id" type="number">
+      History record ID
+    </ResponseField>
+    <ResponseField name="openvpn_id" type="number">
+      OpenVPN server configuration ID
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Client common name
+    </ResponseField>
+    <ResponseField name="address" type="string">
+      Client virtual IP address
+    </ResponseField>
+    <ResponseField name="real_address" type="string">
+      Client real (external) IP address
+    </ResponseField>
+    <ResponseField name="connected_at" type="string">
+      ISO timestamp of connection start
+    </ResponseField>
+    <ResponseField name="disconnected_at" type="string">
+      ISO timestamp of disconnection (null if still connected)
+    </ResponseField>
+    <ResponseField name="bytes_sent" type="number">
+      Total bytes sent to client
+    </ResponseField>
+    <ResponseField name="bytes_received" type="number">
+      Total bytes received from client
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total number of records matching the filter criteria
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Current page number
+</ResponseField>
+
+<ResponseField name="pageSize" type="number">
+  Number of records per page
+</ResponseField>
+
+<ResponseExample>
+```json 200 Response
+{
+  "data": [
+    {
+      "id": 1523,
+      "openvpn_id": 10,
+      "name": "client-laptop-001",
+      "address": "10.8.0.2",
+      "real_address": "203.0.113.45",
+      "connected_at": "2026-03-04T09:15:23.000Z",
+      "disconnected_at": "2026-03-04T17:32:10.000Z",
+      "bytes_sent": 15728640,
+      "bytes_received": 5242880
+    },
+    {
+      "id": 1524,
+      "openvpn_id": 10,
+      "name": "client-laptop-001",
+      "address": "10.8.0.2",
+      "real_address": "203.0.113.45",
+      "connected_at": "2026-03-04T08:00:00.000Z",
+      "disconnected_at": null,
+      "bytes_sent": 2097152,
+      "bytes_received": 1048576
+    }
+  ],
+  "total": 2,
+  "page": 1,
+  "pageSize": 50
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```bash cURL
+curl -X GET \
+  'https://api.fwcloud.net/api/fwclouds/1/firewalls/5/openvpn/10/history?starts_at=1709539200000&ends_at=1709625600000&name=client-laptop-001'
+```
+</ResponseExample>
+
+## Notes
+
+- Only works with OpenVPN server configurations (not client configurations)
+- The server must have status logging enabled and properly configured
+- History data is stored in the database by the OpenVPN status monitoring service
+- Timestamps use Unix epoch in milliseconds for query parameters
+- Returns HTTP 200 with results array (may be empty if no records match)
+- Returns HTTP 404 if the OpenVPN server configuration is not found
+
+## Authorization
+
+Requires OpenVPNPolicy.history authorization for the specified OpenVPN server configuration.

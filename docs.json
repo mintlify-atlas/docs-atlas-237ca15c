@@ -1,122 +1,219 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "FWCloud API",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#1e3a8a",
+    "light": "#3b82f6",
+    "dark": "#1e40af"
   },
   "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/soltecsis/fwcloud-api"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/soltecsis/fwcloud-api",
+      "website": "https://fwcloud.net"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "authentication"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "core-concepts/architecture",
+              "core-concepts/fwclouds",
+              "core-concepts/firewalls",
+              "core-concepts/policies",
+              "core-concepts/vpn-types"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/setup",
+              "guides/firewall-management",
+              "guides/policy-compilation",
+              "guides/vpn-configuration",
+              "guides/backups",
+              "guides/ai-assistant"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/overview",
+              "api-reference/errors",
+              "api-reference/rate-limits"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "FWCloud Management",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/fwclouds/create",
+              "api-reference/fwclouds/update",
+              "api-reference/fwclouds/export",
+              "api-reference/fwclouds/import"
+            ]
+          },
+          {
+            "group": "Firewalls",
+            "pages": [
+              "api-reference/firewalls/communication",
+              "api-reference/firewalls/plugins",
+              "api-reference/firewalls/compile"
+            ]
+          },
+          {
+            "group": "Policy Rules",
+            "pages": [
+              "api-reference/policy-rules/read",
+              "api-reference/policy-rules/download"
+            ]
+          },
+          {
+            "group": "VPN - OpenVPN",
+            "pages": [
+              "api-reference/vpn/openvpn/installer",
+              "api-reference/vpn/openvpn/history",
+              "api-reference/vpn/openvpn/archives"
+            ]
+          },
+          {
+            "group": "VPN - WireGuard",
+            "pages": [
+              "api-reference/vpn/wireguard/manage",
+              "api-reference/vpn/wireguard/clients",
+              "api-reference/vpn/wireguard/install"
+            ]
+          },
+          {
+            "group": "VPN - IPsec",
+            "pages": [
+              "api-reference/vpn/ipsec/manage",
+              "api-reference/vpn/ipsec/clients",
+              "api-reference/vpn/ipsec/install"
+            ]
+          },
+          {
+            "group": "Routing",
+            "pages": [
+              "api-reference/routing/tables",
+              "api-reference/routing/routes",
+              "api-reference/routing/rules"
+            ]
+          },
+          {
+            "group": "System Services",
+            "pages": [
+              "api-reference/system/dhcp",
+              "api-reference/system/keepalived",
+              "api-reference/system/haproxy",
+              "api-reference/system/systemctl"
+            ]
+          },
+          {
+            "group": "Certificates",
+            "pages": [
+              "api-reference/certificates/ca",
+              "api-reference/certificates/crt"
+            ]
+          },
+          {
+            "group": "Backups",
+            "pages": [
+              "api-reference/backups/create",
+              "api-reference/backups/restore",
+              "api-reference/backups/config"
+            ]
+          },
+          {
+            "group": "Snapshots",
+            "pages": [
+              "api-reference/snapshots/create",
+              "api-reference/snapshots/restore"
+            ]
+          },
+          {
+            "group": "AI Assistant",
+            "pages": [
+              "api-reference/ai/check-policy",
+              "api-reference/ai/check-rules",
+              "api-reference/ai/config"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "api-reference/auth/tfa"
+            ]
+          },
+          {
+            "group": "Updates",
+            "pages": [
+              "api-reference/updates/check",
+              "api-reference/updates/install"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/overview",
+              "cli/migration",
+              "cli/backup",
+              "cli/keys",
+              "cli/routes"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "groups": [
+          {
+            "group": "Deployment",
+            "pages": [
+              "advanced/installation",
+              "advanced/configuration",
+              "advanced/database",
+              "advanced/docker"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "advanced/contributing",
+              "advanced/testing",
+              "advanced/changelog"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

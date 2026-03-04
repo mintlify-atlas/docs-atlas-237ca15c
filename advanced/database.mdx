@@ -1,0 +1,452 @@
+---
+title: Database Setup and Migrations
+description: Database configuration, setup, and migration management for FWCloud-API
+---
+
+## Overview
+
+FWCloud-API uses TypeORM for database management and supports MySQL 8+ and MariaDB 10.5+. This guide covers database setup, migrations, and maintenance.
+
+## Database Setup
+
+### Prerequisites
+
+Install MySQL or MariaDB:
+
+```bash
+# Debian/Ubuntu - MySQL
+sudo apt install -y mysql-server mysql-client
+
+# Debian/Ubuntu - MariaDB
+sudo apt install -y mariadb-server mariadb-client
+
+# RHEL/CentOS
+sudo yum install -y mariadb-server mariadb
+sudo systemctl start mariadb
+sudo systemctl enable mariadb
+```
+
+### Initial Database Configuration
+
+1. **Secure MySQL/MariaDB Installation**
+
+```bash
+sudo mysql_secure_installation
+```
+
+Follow the prompts to:
+- Set root password
+- Remove anonymous users
+- Disallow root login remotely
+- Remove test database
+- Reload privilege tables
+
+2. **Create Database and User**
+
+```bash
+sudo mysql -u root -p
+```
+
+Run the following SQL commands:
+
+```sql
+-- Create database
+CREATE DATABASE fwcloud CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Create user
+CREATE USER 'fwcloud_user'@'localhost' IDENTIFIED BY 'secure_password';
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON fwcloud.* TO 'fwcloud_user'@'localhost';
+
+-- Flush privileges
+FLUSH PRIVILEGES;
+
+-- Exit
+EXIT;
+```
+
+3. **Test Database Connection**
+
+```bash
+mysql -u fwcloud_user -p fwcloud
+```
+
+<Warning>
+Use a strong password for the database user. Never use default or weak passwords in production.
+</Warning>
+
+### Database Configuration
+
+Configure database connection in `.env`:
+
+```bash
+TYPEORM_CONNECTION=mysql
+TYPEORM_HOST=127.0.0.1
+TYPEORM_PORT=3306
+TYPEORM_DATABASE=fwcloud
+TYPEORM_USERNAME=fwcloud_user
+TYPEORM_PASSWORD=secure_password
+```
+
+<Note>
+Use `127.0.0.1` instead of `localhost` to avoid DNS resolution issues, especially on Debian 12 and similar systems.
+</Note>
+
+## Database Migrations
+
+### Migration Overview
+
+FWCloud-API uses TypeORM migrations to manage database schema changes. Migrations are TypeScript files located in:
+
+```
+src/database/migrations/1.0.0/
+```
+
+### Migration Commands
+
+FWCloud-API provides a CLI tool (`fwcli`) for migration management:
+
+#### Run Migrations
+
+Apply all pending migrations:
+
+```bash
+node fwcli migration:run
+```
+
+This command:
+- Connects to the database
+- Checks for pending migrations
+- Executes them in order
+- Updates the migrations table
+
+#### Import Default Data
+
+Load default data (standard services, objects, etc.):
+
+```bash
+node fwcli migration:data
+```
+
+Use `--force` to reimport data:
+
+```bash
+node fwcli migration:data --force
+```
+
+<Warning>
+The `--force` flag will overwrite existing data. Use with caution.
+</Warning>
+
+#### Rollback Migrations
+
+Revert the last migration:
+
+```bash
+node fwcli migration:rollback
+```
+
+#### Reset Database
+
+Reset the entire database (drop all tables):
+
+```bash
+node fwcli migration:reset
+```
+
+<Warning>
+This will permanently delete all data. Use only in development.
+</Warning>
+
+#### Create New Migration
+
+Create a new migration file:
+
+```bash
+node fwcli migration:create --name=YourMigrationName
+```
+
+#### Show Migration Status
+
+View pending and executed migrations:
+
+```bash
+node fwcli migration:status
+```
+
+### Migration Workflow
+
+#### Development Workflow
+
+1. Make changes to entity models
+2. Generate migration:
+   ```bash
+   node fwcli migration:create --name=AddNewFeature
+   ```
+3. Edit the generated migration file
+4. Test migration:
+   ```bash
+   node fwcli migration:run
+   ```
+5. Verify database changes
+6. Commit migration file to version control
+
+#### Production Deployment
+
+1. Stop the application (optional but recommended)
+2. Backup the database:
+   ```bash
+   mysqldump -u fwcloud_user -p fwcloud > backup_$(date +%Y%m%d_%H%M%S).sql
+   ```
+3. Run migrations:
+   ```bash
+   node fwcli migration:run
+   ```
+4. Add standard services if needed:
+   ```bash
+   node fwcli standard:services:add
+   ```
+5. Start the application
+
+<Note>
+Package installations (`.deb` and `.rpm`) automatically run migrations during the upgrade process.
+</Note>
+
+## Database Schema
+
+### Core Tables
+
+FWCloud-API uses the following main tables:
+
+- **user**: User accounts and authentication
+- **customer**: Customer/organization management
+- **fwcloud**: FWCloud instances
+- **firewall**: Firewall configurations
+- **cluster**: Firewall clusters
+- **interface**: Network interfaces
+- **ipobj**: IP objects (hosts, networks, addresses)
+- **ipobj_g**: IP object groups
+- **policy_r**: Firewall policy rules
+- **policy_g**: Policy rule groups
+- **routing_table**: Routing tables
+- **routing_r**: Routing rules
+- **route_r**: Static routes
+- **ca**: Certificate authorities
+- **crt**: Certificates
+- **openvpn**: OpenVPN configurations
+- **wireguard**: WireGuard configurations
+- **ipsec**: IPsec configurations
+- **dhcp_r**: DHCP service configurations
+- **keepalived_r**: Keepalived service configurations
+- **haproxy_r**: HAProxy service configurations
+- **fwc_tree**: Tree structure for UI
+- **mark**: Firewall marks
+
+### Key Migrations
+
+Important migrations in chronological order:
+
+| Migration | Description |
+|-----------|-------------|
+| `1579700895349-create_ca_table` | Certificate Authority management |
+| `1579701144783-create_cluster_table` | Firewall clustering |
+| `1579701347320-create_firewall_table` | Core firewall table |
+| `1579701392749-create_fwcloud_table` | FWCloud instances |
+| `1579701419742-create_interface_table` | Network interfaces |
+| `1579701470388-create_ipobj_table` | IP objects |
+| `1579701500404-create_mark_table` | Firewall marks |
+| `1579701517852-create_openvpn_table` | OpenVPN configurations |
+| `1579701543732-create_policy_table` | Firewall policies |
+| `1579701577274-create_routing_table` | Routing tables |
+| `1579701598735-create_user_table` | User management |
+| `1619453385390-routing-feature` | Advanced routing support |
+| `1632231051227-firewall_agent_configuration` | FWCloud Agent integration |
+| `1633524573701-create_openvpn_status_history` | OpenVPN statistics |
+| `1654166618845-add_2fa_to_user` | Two-factor authentication |
+| `1699131121605-DHCP_Service` | DHCP service management |
+| `1707389184803-KeepAlived_Service` | Keepalived service |
+| `1707395797754-HAProxy_Service` | HAProxy service |
+| `1732791730332-CreateAiAndAiModelsTables` | AI integration |
+| `1737018559931-WireGuard` | WireGuard VPN support |
+| `1740127476775-fwcloudCloudLock` | Exclusive FWCloud editing |
+| `1740582098062-IPSec` | IPsec VPN support |
+
+## Database Maintenance
+
+### Backup Strategies
+
+#### Manual Backup
+
+```bash
+# Full backup
+mysqldump -u fwcloud_user -p fwcloud | gzip > fwcloud_backup_$(date +%Y%m%d_%H%M%S).sql.gz
+
+# Backup specific tables
+mysqldump -u fwcloud_user -p fwcloud policy_r routing_r > policies_backup.sql
+```
+
+#### Automated Backups
+
+FWCloud-API includes built-in backup functionality:
+
+```bash
+# Create backup via CLI
+node fwcli backup:create
+
+# Restore from backup
+node fwcli backup:restore --file=backup_20260304.sql.gz
+```
+
+Backups are compressed (gzip) to save space.
+
+#### Backup Retention
+
+Configure backup retention in the configuration:
+
+```javascript
+{
+  backup: {
+    retention: {
+      daily: 7,
+      weekly: 4,
+      monthly: 12
+    }
+  }
+}
+```
+
+### Database Optimization
+
+#### Analyze and Optimize Tables
+
+```sql
+-- Analyze tables
+ANALYZE TABLE policy_r, ipobj, fwc_tree;
+
+-- Optimize tables
+OPTIMIZE TABLE policy_r, ipobj, fwc_tree;
+```
+
+#### Check Database Size
+
+```sql
+SELECT 
+    table_name AS 'Table',
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'Size (MB)'
+FROM information_schema.TABLES
+WHERE table_schema = 'fwcloud'
+ORDER BY (data_length + index_length) DESC;
+```
+
+#### Index Maintenance
+
+Key indexes are automatically created by migrations:
+
+- `ipobj.address` - Added in migration `1757404263501`
+- `openvpn_status_history` - Multiple indexes added in `1669884249679`
+
+### Database Monitoring
+
+#### Check Connection Status
+
+```sql
+SHOW PROCESSLIST;
+SHOW STATUS LIKE 'Threads_connected';
+```
+
+#### Monitor Query Performance
+
+Enable query logging in development:
+
+```bash
+LOG_QUERIES=true
+```
+
+#### Slow Query Log
+
+```sql
+-- Enable slow query log
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 2;
+```
+
+## Troubleshooting
+
+### Migration Failures
+
+1. **Check migration status**:
+   ```bash
+   node fwcli migration:status
+   ```
+
+2. **Review error logs**:
+   ```bash
+   tail -f logs/api.log
+   ```
+
+3. **Rollback and retry**:
+   ```bash
+   node fwcli migration:rollback
+   node fwcli migration:run
+   ```
+
+### Connection Issues
+
+- Verify database is running: `sudo systemctl status mysql`
+- Check credentials in `.env`
+- Test connection: `mysql -u fwcloud_user -p fwcloud`
+- Verify firewall rules if using remote database
+
+### TypeORM Version Issues
+
+FWCloud-API uses TypeORM 0.3.28. Migration commands were updated to work with recent TypeORM versions (fixed in version 2.0.14).
+
+### Out of Memory Errors
+
+- Increase MySQL buffer pool size
+- Configure connection pooling
+- Optimize OpenVPN history data collection (fixed in version 1.7.1)
+
+## Performance Tuning
+
+### MySQL/MariaDB Configuration
+
+Edit `/etc/mysql/my.cnf` or `/etc/my.cnf.d/server.cnf`:
+
+```ini
+[mysqld]
+# InnoDB settings
+innodb_buffer_pool_size = 1G
+innodb_log_file_size = 256M
+innodb_flush_log_at_trx_commit = 2
+
+# Query cache (MySQL 5.7 only)
+query_cache_type = 1
+query_cache_size = 64M
+
+# Connection settings
+max_connections = 200
+connect_timeout = 10
+```
+
+### Connection Pooling
+
+Configure in TypeORM:
+
+```javascript
+{
+  extra: {
+    connectionLimit: 10,
+    waitForConnections: true,
+    queueLimit: 0
+  }
+}
+```
+
+## Next Steps
+
+- [Configure the application](/advanced/configuration)
+- [Deploy with Docker](/advanced/docker)
+- [Learn about testing](/advanced/testing)
+- [View changelog](/advanced/changelog)

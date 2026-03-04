@@ -1,0 +1,134 @@
+---
+title: Introduction
+description: Welcome to the FWCloud API documentation
+---
+
+## What is FWCloud API?
+
+FWCloud API is a RESTful API for managing firewall configurations, VPN connections, and network security policies. It provides a comprehensive interface for configuring and managing firewalls, routing rules, VPN connections (OpenVPN, WireGuard, IPSec), and network objects.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Firewall Management" icon="shield">
+    Create and manage firewall policies, rules, and configurations across multiple firewalls
+  </Card>
+  <Card title="VPN Support" icon="network-wired">
+    Configure OpenVPN, WireGuard, and IPSec VPN connections with full certificate management
+  </Card>
+  <Card title="Routing & Network" icon="route">
+    Manage routing tables, rules, and network objects with advanced policy controls
+  </Card>
+  <Card title="Multi-Tenant" icon="users">
+    Support for multiple customers with role-based access control and user management
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+FWCloud API is built with:
+
+- **Node.js** and **TypeScript** for robust, type-safe backend
+- **Express.js** for RESTful API routing
+- **TypeORM** for database management (MySQL)
+- **Session-based authentication** with file storage
+- **PGP encryption** for secure communication
+- **Two-factor authentication** (2FA) support
+
+## API Characteristics
+
+### Session-Based Authentication
+
+The API uses **session-based authentication** rather than token-based authentication. Once you log in, your session is maintained server-side with:
+
+- Session files stored on the server
+- Automatic session keepalive mechanism
+- Configurable session expiration
+- PGP encryption for sensitive data
+
+### RESTful Design
+
+The API follows REST principles:
+
+- **Resource-oriented URLs**: `/fwclouds/:fwcloud/firewalls/:firewall`
+- **HTTP methods**: GET, POST, PUT, DELETE
+- **JSON format**: All requests and responses use JSON
+- **Status codes**: Standard HTTP status codes for responses
+
+### Multi-Tenant Support
+
+Each request operates within the context of a customer (tenant):
+
+```json
+{
+  "customer": 1,
+  "username": "admin",
+  "password": "password"
+}
+```
+
+## Base URL
+
+By default, the API runs on:
+
+```
+https://127.0.0.1:3131
+```
+
+<Note>
+  The API uses HTTPS by default. You can configure the IP address, port, and TLS certificates through environment variables or the configuration file.
+</Note>
+
+## Configuration
+
+The API can be configured via environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `APISRV_IP` | API IP address to bind | `127.0.0.1` |
+| `APISRV_PORT` | API TCP port | `3131` |
+| `APISRV_HTTPS` | Enable HTTPS | `true` |
+| `APISRV_HTTPS_CERT` | Path to TLS certificate | `./config/tls/fwcloud-api.crt` |
+| `APISRV_HTTPS_KEY` | Path to TLS key | `./config/tls/fwcloud-api.key` |
+
+## Response Format
+
+All API responses return JSON data:
+
+**Success Response:**
+```json
+{
+  "user": 1,
+  "role": 1,
+  "publicKey": "-----BEGIN PGP PUBLIC KEY BLOCK-----..."
+}
+```
+
+**Error Response:**
+```json
+{
+  "fwcErr": 1001,
+  "msg": "Bad username or password"
+}
+```
+
+## API Version
+
+<Info>
+  Current API version: **2.3.1**
+</Info>
+
+## License
+
+FWCloud API is free software licensed under **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get started with your first API call
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn about session-based authentication
+  </Card>
+</CardGroup>

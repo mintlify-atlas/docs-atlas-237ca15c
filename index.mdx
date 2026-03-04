@@ -1,97 +1,240 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: FWCloud API Documentation
+description: REST API for managing firewall policies, VPN configurations, and network security infrastructure
+mode: custom
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-br from-[#0f1117] via-[#1a1d27] to-[#0f1117] dark:from-[#0f1117] dark:via-[#1a1d27] dark:to-[#0f1117] py-20">
+  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6">
+          FWCloud API
+        </h1>
+        <p className="text-xl text-gray-300 max-w-2xl mb-8">
+          Powerful REST API for managing firewall policies, VPN configurations, and network security infrastructure. Build secure, scalable network management solutions with support for IPTables, NFTables, and VyOS.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a
+            href="/quickstart"
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-[#1e3a8a] hover:bg-[#1e40af] text-white font-semibold transition-colors no-underline"
+          >
+            Get Started
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a
+            href="/api-reference/overview"
+            className="inline-flex items-center px-6 py-3 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors no-underline"
+          >
+            API Reference
+          </a>
+        </div>
+      </div>
+      <div className="hidden lg:block lg:col-span-5 mt-12 lg:mt-0">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1e3a8a] to-[#3b82f6] rounded-2xl blur-3xl opacity-20"></div>
+          <div className="relative bg-[#1a1d27] dark:bg-[#1a1d27] rounded-2xl border border-[#27272a] dark:border-[#27272a] p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <pre className="text-sm text-gray-300 overflow-x-auto">
+              <code>{`POST /fwclouds/:id/firewalls/:firewall/policyRules/download
 
-Get your documentation site up and running in minutes.
+{
+  "compiler": "iptables",
+  "install": true
+}
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+→ Compiles and deploys policy to firewall`}</code>
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-## Make it yours
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Quick Start</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Get up and running with FWCloud API in minutes</p>
+  
+  <Steps>
+    <Step title="Install and start the API">
+      Clone the repository and install dependencies:
+      
+      ```bash
+      git clone https://github.com/soltecsis/fwcloud-api.git
+      cd fwcloud-api
+      npm install
+      npm run build
+      npm start
+      ```
+      
+      The API will start on the configured port (default: 3131).
+    </Step>
+    
+    <Step title="Configure database connection">
+      Copy the example environment file and configure your database:
+      
+      ```bash
+      cp .env.example .env
+      ```
+      
+      Edit `.env` to set your MySQL connection details. Then run migrations:
+      
+      ```bash
+      node fwcli migration:run
+      ```
+    </Step>
+    
+    <Step title="Make your first API call">
+      Authenticate and create your first FWCloud:
+      
+      ```bash
+      curl -X POST https://your-api-host/fwclouds \
+        -H "Content-Type: application/json" \
+        -H "Cookie: session=your-session-cookie" \
+        -d '{"name": "My First FWCloud"}'
+      ```
+      
+      <Accordion title="Example Response">
+        ```json
+        {
+          "id": 1,
+          "name": "My First FWCloud",
+          "created_at": "2024-03-04T10:00:00.000Z",
+          "updated_at": "2024-03-04T10:00:00.000Z"
+        }
+        ```
+      </Accordion>
+    </Step>
+  </Steps>
+</div>
 
-Design a docs site that looks great and empowers your users.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Explore by Topic</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Dive into specific areas of the FWCloud API</p>
+  
+  <CardGroup cols={2}>
+    <Card title="Firewall Management" icon="shield-halved" href="/guides/firewall-management">
+      Configure and manage firewalls with support for IPTables, NFTables, and VyOS compilers
+    </Card>
+    <Card title="VPN Configuration" icon="network-wired" href="/guides/vpn-configuration">
+      Set up OpenVPN, WireGuard, and IPsec VPNs with automated deployment and monitoring
+    </Card>
+    <Card title="Policy Compilation" icon="file-code" href="/guides/policy-compilation">
+      Compile and deploy firewall policies with dangerous rule detection and validation
+    </Card>
+    <Card title="Backup & Restore" icon="clock-rotate-left" href="/guides/backups">
+      Automated backup scheduling and restore capabilities for disaster recovery
+    </Card>
+    <Card title="AI Assistant" icon="brain" href="/guides/ai-assistant">
+      AI-powered policy analysis and validation to catch misconfigurations
+    </Card>
+    <Card title="Routing Tables" icon="route" href="/api-reference/routing/tables">
+      Manage routing tables, routes, and rules for advanced network configurations
+    </Card>
+  </CardGroup>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Key Features</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Everything you need to build secure network infrastructure</p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#1e3a8a] dark:hover:border-[#1e3a8a] bg-white dark:bg-[#1a1d27] p-6 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#1e3a8a]/10 dark:bg-[#1e3a8a]/20 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#1e3a8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Multi-Compiler Support</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Compile policies for IPTables, NFTables, and VyOS with dangerous rule detection</p>
+        </div>
+      </div>
+    </div>
+    
+    <div className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#1e3a8a] dark:hover:border-[#1e3a8a] bg-white dark:bg-[#1a1d27] p-6 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#1e3a8a]/10 dark:bg-[#1e3a8a]/20 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#1e3a8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Multi-VPN Support</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Manage OpenVPN, WireGuard, and IPsec configurations from a single API</p>
+        </div>
+      </div>
+    </div>
+    
+    <div className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#1e3a8a] dark:hover:border-[#1e3a8a] bg-white dark:bg-[#1a1d27] p-6 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#1e3a8a]/10 dark:bg-[#1e3a8a]/20 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#1e3a8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Real-time WebSockets</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Live updates for policy compilation, VPN status, and system events</p>
+        </div>
+      </div>
+    </div>
+    
+    <div className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#1e3a8a] dark:hover:border-[#1e3a8a] bg-white dark:bg-[#1a1d27] p-6 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#1e3a8a]/10 dark:bg-[#1e3a8a]/20 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#1e3a8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">AI-Powered Analysis</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Intelligent policy validation and security recommendations</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-## Create beautiful pages
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Resources</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Additional resources to help you succeed</p>
+  
+  <CardGroup cols={3}>
+    <Card title="Core Concepts" icon="book-open" href="/core-concepts/architecture">
+      Learn about FWCloud architecture and data models
+    </Card>
+    <Card title="CLI Reference" icon="terminal" href="/cli/overview">
+      Command-line tools for migrations, backups, and more
+    </Card>
+    <Card title="Deployment Guide" icon="server" href="/advanced/installation">
+      Production deployment and configuration best practices
+    </Card>
+  </CardGroup>
+</div>
 
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] p-12 text-center">
+    <h2 className="text-3xl font-bold text-white mb-4">Ready to Get Started?</h2>
+    <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+      Deploy secure network infrastructure with FWCloud API. Follow our quickstart guide to have your first firewall policy up and running in minutes.
+    </p>
+    <a
+      href="/quickstart"
+      className="inline-flex items-center px-8 py-4 rounded-lg bg-white hover:bg-gray-100 text-[#1e3a8a] font-semibold transition-colors no-underline"
+    >
+      Start Building
+      <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+      </svg>
+    </a>
+  </div>
+</div>

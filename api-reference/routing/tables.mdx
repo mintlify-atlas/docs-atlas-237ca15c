@@ -1,0 +1,144 @@
+---
+title: 'Routing Tables'
+description: 'Manage routing tables within firewalls'
+---
+
+## List Routing Tables
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves all routing tables for a specific firewall.
+
+**Response**
+```json
+[
+  {
+    "id": 1,
+    "name": "main",
+    "number": 254,
+    "comment": "Main routing table",
+    "firewallId": 1
+  }
+]
+```
+
+## Get Routing Table
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves a specific routing table by ID.
+
+## Get Grid View
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/grid
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/grid" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves routing table data in grid format for UI display.
+
+## Compile Routes
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/compile?routes[]=1&routes[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles routes in a routing table into executable scripts.
+
+**Query Parameters**
+- `routes` (array, optional) - Specific route IDs to compile. If not provided, compiles all routes.
+
+**Response**
+```json
+{
+  "cs": "ip route add 10.0.0.0/24 via 192.168.1.1",
+  "type": "Route"
+}
+```
+
+## Create Routing Table
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/routingTables
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/routingTables" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "custom",
+    "number": 100,
+    "comment": "Custom routing table"
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `name` (string, required) - Name of the routing table
+- `number` (integer, required) - Routing table number (1-252)
+- `comment` (string, optional) - Description of the table
+
+## Update Routing Table
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "updated-custom",
+    "comment": "Updated description"
+  }'
+```
+</CodeGroup>
+
+## Check Restrictions
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/restricted
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/restricted" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Checks if the routing table has any restrictions preventing deletion (e.g., used in routing rules).
+
+**Response (if restrictions exist)**
+```json
+{
+  "restrictions": {
+    "routingTableUsedInRule": [
+      {
+        "routing_rule_id": 1,
+        "routing_table_id": 1,
+        "firewall_id": 1,
+        "firewall_name": "fw-01"
+      }
+    ]
+  }
+}
+```
+
+## Delete Routing Table
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Deletes a routing table. Returns 403 if restrictions exist.

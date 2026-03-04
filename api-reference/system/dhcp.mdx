@@ -1,0 +1,208 @@
+---
+title: 'DHCP Service'
+description: 'Manage DHCP server rules and configuration'
+---
+
+## List DHCP Rules
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves all DHCP rules for a firewall.
+
+## Get Grid View
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/grid/:set
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/grid/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves DHCP rules in grid format.
+
+**Path Parameters**
+- `set` (integer, required) - Grid set: 1 for regular DHCP rules, 2 for fixed address assignments
+
+## Get DHCP Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/:dhcp
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Create DHCP Rule
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "interface": "eth0",
+    "range": "192.168.1.100-192.168.1.200",
+    "router": "192.168.1.1",
+    "netmask": "255.255.255.0",
+    "dns": ["8.8.8.8", "8.8.4.4"],
+    "max_lease_time": 86400,
+    "default_lease_time": 43200,
+    "comment": "DHCP pool for LAN",
+    "active": true
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `interface` (string, optional) - Network interface
+- `range` (string, optional) - DHCP range (format: "start-end")
+- `router` (string, optional) - Default gateway
+- `netmask` (string, optional) - Subnet mask
+- `dns` (array, optional) - DNS servers
+- `max_lease_time` (integer, optional) - Maximum lease time in seconds
+- `default_lease_time` (integer, optional) - Default lease time in seconds
+- `comment` (string, optional) - Description
+- `active` (boolean, optional) - Whether rule is enabled
+- `group` (integer, optional) - DHCP group ID
+
+## Update DHCP Rule
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/:dhcp
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "max_lease_time": 172800,
+    "dns": ["1.1.1.1", "1.0.0.1"]
+  }'
+```
+</CodeGroup>
+
+## Copy Rules
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/copy
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/copy" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": [1, 2],
+    "to": 5,
+    "offset": "below"
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `rules` (array, required) - Rule IDs to copy
+- `to` (integer, required) - Target rule ID
+- `offset` (string, required) - Position: "above" or "below"
+
+## Move Rules
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/move
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/move" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": [1, 2],
+    "to": 5,
+    "offset": "above"
+  }'
+```
+</CodeGroup>
+
+## Move From
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/moveFrom
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/moveFrom" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+## Bulk Update
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/bulkUpdate?rules[]=1&rules[]=2
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/bulkUpdate?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "active": false
+  }'
+```
+</CodeGroup>
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to update
+
+## Compile DHCP Configuration
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles all DHCP rules into dhcpd.conf format.
+
+## Compile Single Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/:dhcp/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/1/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Install DHCP Configuration
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/install
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/install" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles and installs DHCP configuration to the firewall.
+
+This endpoint:
+1. Compiles all DHCP rules into dhcpd.conf
+2. Uploads the configuration to `/etc/dhcp/dhcpd.conf`
+3. Validates the configuration
+4. Emits progress events via WebSocket
+
+## Delete DHCP Rule
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/:dhcp
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Bulk Remove
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/system/dhcpRules/bulkRemove?rules[]=1&rules[]=2
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/system/dhcpRules/bulkRemove?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to delete

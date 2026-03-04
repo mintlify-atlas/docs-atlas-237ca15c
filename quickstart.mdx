@@ -1,80 +1,278 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get started with the FWCloud API in minutes
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+Before you begin, ensure you have:
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="FWCloud API Running">
+    The FWCloud API server must be running and accessible. By default, it runs on `https://127.0.0.1:3131`
+  </Step>
+  <Step title="Valid Credentials">
+    You need a valid customer ID, username, and password
+  </Step>
+  <Step title="HTTP Client">
+    Use curl, Postman, or any HTTP client that supports cookies/sessions
+  </Step>
+</Steps>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+## Your First API Call
 
-### Step 2: Deploy your changes
+Let's make your first API call by logging in to the FWCloud API.
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+### Step 1: Login
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+The login endpoint authenticates you and creates a session:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+<CodeGroup>
+```bash curl
+curl -k -X POST https://127.0.0.1:3131/user/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{
+    "customer": 1,
+    "username": "fwcadmin",
+    "password": "fwcadmin"
+  }'
+```
 
-### Step 3: Go live
+```javascript JavaScript
+const response = await fetch('https://127.0.0.1:3131/user/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  credentials: 'include', // Important: include cookies
+  body: JSON.stringify({
+    customer: 1,
+    username: 'fwcadmin',
+    password: 'fwcadmin'
+  })
+});
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+const data = await response.json();
+console.log(data);
+```
 
-## Next steps
+```python Python
+import requests
 
-Now that you have your docs running, explore these key features:
+url = 'https://127.0.0.1:3131/user/login'
+payload = {
+    'customer': 1,
+    'username': 'fwcadmin',
+    'password': 'fwcadmin'
+}
 
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+session = requests.Session()
+response = session.post(url, json=payload, verify=False)
+print(response.json())
+```
+</CodeGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The `-k` flag in curl disables certificate verification for self-signed certificates. In production, use valid certificates and remove this flag.
 </Note>
+
+**Response:**
+```json
+{
+  "user": 1,
+  "role": 1,
+  "publicKey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n..."
+}
+```
+
+The response includes:
+- `user`: Your user ID
+- `role`: Your role (1 = Admin, 2 = Manager)
+- `publicKey`: Server's PGP public key for encrypted communication
+
+<Warning>
+  The `-c cookies.txt` flag is crucial! It saves the session cookie which you'll need for all subsequent requests.
+</Warning>
+
+### Step 2: Make an Authenticated Request
+
+Now that you're logged in, let's make an authenticated request to keep your session alive:
+
+<CodeGroup>
+```bash curl
+curl -k -X PUT https://127.0.0.1:3131/ping \
+  -H "Content-Type: application/json" \
+  -b cookies.txt
+```
+
+```javascript JavaScript
+// Session is maintained via cookies
+const response = await fetch('https://127.0.0.1:3131/ping', {
+  method: 'PUT',
+  credentials: 'include'
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python
+# Session is maintained automatically
+response = session.put('https://127.0.0.1:3131/ping')
+print(response.json())
+```
+</CodeGroup>
+
+**Response:**
+```json
+{
+  "result": "pong"
+}
+```
+
+### Step 3: Logout
+
+When you're done, properly close your session:
+
+<CodeGroup>
+```bash curl
+curl -k -X POST https://127.0.0.1:3131/user/logout \
+  -b cookies.txt
+```
+
+```javascript JavaScript
+await fetch('https://127.0.0.1:3131/user/logout', {
+  method: 'POST',
+  credentials: 'include'
+});
+```
+
+```python Python
+response = session.post('https://127.0.0.1:3131/user/logout')
+print(response.status_code)  # 204 No Content
+```
+</CodeGroup>
+
+**Response:**
+```
+HTTP/1.1 204 No Content
+```
+
+## Understanding Sessions
+
+The FWCloud API uses **session-based authentication**:
+
+<Steps>
+  <Step title="Login Creates Session">
+    When you login, the server creates a session file and returns a session cookie
+  </Step>
+  <Step title="Include Cookie in Requests">
+    You must include this cookie in all subsequent requests
+  </Step>
+  <Step title="Session Keepalive">
+    Sessions automatically expire after a period of inactivity. Use the `/ping` endpoint to keep sessions alive
+  </Step>
+  <Step title="Logout Destroys Session">
+    Always logout to properly clean up server-side session files
+  </Step>
+</Steps>
+
+## Common Endpoints
+
+Here are some commonly used endpoints to get you started:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/user/login` | POST | Authenticate and create session |
+| `/user/logout` | POST | Destroy session |
+| `/ping` | PUT | Keep session alive (ping/pong) |
+| `/config` | GET | Get API configuration |
+| `/fwclouds` | POST | Create a new firewall cloud |
+| `/version` | GET | Get API version info |
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+- `200` - Success
+- `204` - Success (No Content)
+- `400` - Bad Request (validation error)
+- `401` - Unauthorized (authentication failed)
+- `404` - Not Found
+- `500` - Internal Server Error
+
+**Error Response Example:**
+```json
+{
+  "fwcErr": 1001,
+  "msg": "Bad username or password"
+}
+```
+
+## Session Expiration
+
+Sessions expire after a period of inactivity (configurable via `session.keepalive_ms`):
+
+```json
+{
+  "fwcErr": 9003,
+  "msg": "Session expired"
+}
+```
+
+<Info>
+  If you receive a session expired error, simply login again to create a new session.
+</Info>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Use HTTPS" icon="lock">
+    The API uses HTTPS by default. Never disable it in production.
+  </Card>
+  <Card title="Store Cookies Securely" icon="cookie">
+    Session cookies contain sensitive information. Store them securely and never expose them.
+  </Card>
+  <Card title="Logout Properly" icon="right-from-bracket">
+    Always logout when done to free server resources and prevent session hijacking.
+  </Card>
+  <Card title="Handle Session Expiry" icon="clock">
+    Implement logic to detect and handle session expiration gracefully.
+  </Card>
+</CardGroup>
+
+## Complete Example
+
+Here's a complete example workflow:
+
+```bash
+# 1. Login and save session
+curl -k -X POST https://127.0.0.1:3131/user/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"customer":1,"username":"fwcadmin","password":"fwcadmin"}'
+
+# 2. Make authenticated requests
+curl -k -X PUT https://127.0.0.1:3131/ping -b cookies.txt
+
+# 3. Get configuration
+curl -k -X GET https://127.0.0.1:3131/config -b cookies.txt
+
+# 4. Logout
+curl -k -X POST https://127.0.0.1:3131/user/logout -b cookies.txt
+
+# 5. Clean up
+rm cookies.txt
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Deep dive into authentication mechanisms
+  </Card>
+  <Card title="API Reference" icon="book">
+    Explore the complete API reference
+  </Card>
+</CardGroup>

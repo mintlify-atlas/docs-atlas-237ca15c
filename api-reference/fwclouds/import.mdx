@@ -1,0 +1,131 @@
+---
+title: 'Import FWCloud'
+openapi: 'POST /fwclouds/import'
+---
+
+Imports a complete FWCloud configuration from a previously exported `.fwcloud` file.
+
+## Authentication
+
+Requires authentication and import privileges.
+
+## Request Body
+
+The request must be sent as `multipart/form-data`.
+
+<ParamField body="file" type="file" required>
+  The `.fwcloud` file to import. Must have the `.fwcloud` extension.
+</ParamField>
+
+<ParamField body="channel_id" type="string">
+  Optional WebSocket channel ID for receiving real-time import progress updates
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="number">
+  The unique identifier of the imported FWCloud
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The name of the imported FWCloud
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  The image identifier
+</ResponseField>
+
+<ResponseField name="comment" type="string">
+  The comment or description
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Timestamp when the FWCloud was created
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  Timestamp when the FWCloud was last updated
+</ResponseField>
+
+## Import Process
+
+The import operation:
+
+1. Validates the uploaded `.fwcloud` file
+2. Checks FWCloud instance limits
+3. Extracts and validates the configuration
+4. Creates the new FWCloud instance
+5. Imports all configurations:
+   - Firewalls and clusters
+   - Policy rules and groups
+   - Network objects
+   - VPN configurations
+   - Routing configurations
+   - System services
+   - PKI certificates
+6. Associates the FWCloud with the importing user
+
+## Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds/import \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -F "file=@/path/to/fwcloud_backup.fwcloud" \
+  -F "channel_id=progress-channel-123"
+```
+
+## Progress Tracking
+
+When a `channel_id` is provided, progress updates are sent via WebSocket:
+
+```json
+{
+  "status": "progress",
+  "message": "Importing policy rules...",
+  "progress": 60
+}
+```
+
+## Example Response
+
+```json
+{
+  "id": 2,
+  "name": "Imported Production FWCloud",
+  "image": "fwcloud-prod",
+  "comment": "Production environment firewall cloud",
+  "created_at": "2024-03-04T12:00:00.000Z",
+  "updated_at": "2024-03-04T12:00:00.000Z",
+  "locked": false
+}
+```
+
+## Errors
+
+<ResponseField name="403" type="error">
+  Forbidden - FWCloud limit reached or insufficient permissions
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Bad Request - Invalid file format or corrupted file
+</ResponseField>
+
+<ResponseField name="500" type="error">
+  Internal Server Error - Import operation failed
+</ResponseField>
+
+## File Validation
+
+The import endpoint validates:
+
+- File extension must be `.fwcloud`
+- File must be a valid FWCloud export archive
+- File structure and data integrity
+- Compatible FWCloud version
+
+## Limitations
+
+- The import creates a new FWCloud instance (does not overwrite existing ones)
+- User limits apply - import will fail if FWCloud limit is reached
+- Requires sufficient system resources
+- Large configurations may take several minutes to import

@@ -1,0 +1,320 @@
+---
+title: Production Installation
+description: Complete guide for installing FWCloud-API in production environments
+---
+
+## Overview
+
+This guide covers the production installation of FWCloud-API, including all prerequisites, dependencies, and best practices for deploying in a production environment.
+
+## Prerequisites
+
+### System Requirements
+
+- **Operating System**: Linux (Debian 12, Ubuntu 20.04+, CentOS 7+, RHEL 8+)
+- **Node.js**: Version 22 or later
+- **Database**: MySQL 8.0+ or MariaDB 10.5+
+- **Memory**: Minimum 2GB RAM (4GB recommended)
+- **Storage**: Minimum 10GB available disk space
+
+### Required Software
+
+```bash
+# Debian/Ubuntu
+sudo apt update
+sudo apt install -y git build-essential mysql-server
+
+# RHEL/CentOS
+sudo yum install -y git gcc-c++ make mariadb-server
+```
+
+## Installation Methods
+
+### Method 1: Package Installation (Recommended)
+
+FWCloud-API provides pre-built packages for Debian and RPM-based distributions.
+
+#### Debian/Ubuntu (.deb)
+
+```bash
+# Download the latest release
+wget https://github.com/soltecsis/fwcloud-api/releases/latest/download/fwcloud-api.deb
+
+# Install the package
+sudo dpkg -i fwcloud-api.deb
+sudo apt-get install -f  # Install dependencies if needed
+
+# Start the service
+sudo systemctl start fwcloud-api
+sudo systemctl enable fwcloud-api
+```
+
+#### RHEL/CentOS (.rpm)
+
+```bash
+# Download the latest release
+wget https://github.com/soltecsis/fwcloud-api/releases/latest/download/fwcloud-api.rpm
+
+# Install the package
+sudo rpm -i fwcloud-api.rpm
+
+# Start the service
+sudo systemctl start fwcloud-api
+sudo systemctl enable fwcloud-api
+```
+
+### Method 2: Manual Installation from Source
+
+#### 1. Clone the Repository
+
+```bash
+git clone https://github.com/soltecsis/fwcloud-api.git
+cd fwcloud-api
+git checkout main
+```
+
+#### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+#### 3. Build the Application
+
+```bash
+npm run build
+```
+
+This command:
+- Cleans the `dist/` directory
+- Copies view templates to `dist/src/views`
+- Compiles TypeScript to JavaScript
+
+#### 4. Configure Environment
+
+Copy the example environment file and configure it:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your production settings:
+
+```bash
+NODE_ENV=prod
+
+# Database Configuration
+TYPEORM_CONNECTION=mysql
+TYPEORM_HOST=localhost
+TYPEORM_PORT=3306
+TYPEORM_DATABASE=fwcloud
+TYPEORM_USERNAME=fwcloud_user
+TYPEORM_PASSWORD=your_secure_password
+
+# Security Secrets
+SESSION_SECRET=your_random_session_secret
+CRYPT_SECRET=your_random_crypt_secret
+
+# CORS Configuration
+CORS_WHITELIST="https://your-domain.com"
+```
+
+<Warning>
+Generate strong random secrets for `SESSION_SECRET` and `CRYPT_SECRET`. Never use default or weak values in production.
+</Warning>
+
+#### 5. Generate Encryption Keys
+
+```bash
+node fwcli keys:generate
+```
+
+#### 6. Run Database Migrations
+
+```bash
+node fwcli migration:run
+node fwcli migration:data
+```
+
+#### 7. Start the Application
+
+```bash
+npm start
+```
+
+## Post-Installation
+
+### Verify Installation
+
+Check that the API is running:
+
+```bash
+# Check service status
+sudo systemctl status fwcloud-api
+
+# Test API endpoint
+curl http://localhost:3131/api/v1/version
+```
+
+### Configure Systemd Service
+
+For manual installations, create a systemd service file at `/etc/systemd/system/fwcloud-api.service`:
+
+```ini
+[Unit]
+Description=FWCloud API Service
+After=network.target mariadb-server.service mysql-server.service
+Wants=mariadb-server.service mysql-server.service
+
+[Service]
+Type=simple
+User=fwcloud
+WorkingDirectory=/opt/fwcloud/api
+ExecStart=/usr/bin/node dist/src/bin/fwcloud
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=fwcloud-api
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable fwcloud-api
+sudo systemctl start fwcloud-api
+```
+
+## TLS/SSL Configuration
+
+### Generate Self-Signed Certificate
+
+For testing purposes:
+
+```bash
+./bin/update-cert.sh api
+```
+
+### Use Production Certificate
+
+Configure your TLS certificates in the environment:
+
+```bash
+APISRV_HTTPS_CERT="/path/to/certificate.crt"
+APISRV_HTTPS_KEY="/path/to/private.key"
+```
+
+<Note>
+For production, use certificates from a trusted Certificate Authority (CA) like Let's Encrypt.
+</Note>
+
+## Security Hardening
+
+### Firewall Configuration
+
+Allow only necessary ports:
+
+```bash
+# UFW (Ubuntu)
+sudo ufw allow 3131/tcp
+sudo ufw enable
+
+# FirewallD (RHEL/CentOS)
+sudo firewall-cmd --permanent --add-port=3131/tcp
+sudo firewall-cmd --reload
+```
+
+### SELinux Configuration (RHEL/CentOS)
+
+If using SELinux, apply the provided policy:
+
+```bash
+sudo checkmodule -M -m -o fwcloud-api.mod config/sys/SELinux/fwcloud-api.te
+sudo semodule_package -o fwcloud-api.pp -m fwcloud-api.mod
+sudo semodule -i fwcloud-api.pp
+```
+
+## Updating FWCloud-API
+
+### Package Installation Update
+
+```bash
+# Download and install new package
+sudo dpkg -i fwcloud-api_new_version.deb  # Debian/Ubuntu
+sudo rpm -U fwcloud-api_new_version.rpm   # RHEL/CentOS
+
+# Database migrations are run automatically in package installations
+```
+
+### Manual Installation Update
+
+```bash
+# Stop the service
+npm run stop
+
+# Update the code
+git pull
+
+# Install dependencies and rebuild
+npm install
+npm run build
+
+# Run migrations
+node fwcli migration:run
+node fwcli standard:services:add
+
+# Start the service
+npm start
+```
+
+Or use the convenience script:
+
+```bash
+npm run update
+```
+
+## Troubleshooting
+
+### Service Won't Start
+
+1. Check logs:
+   ```bash
+   journalctl -u fwcloud-api -n 50
+   ```
+
+2. Verify database connection:
+   ```bash
+   mysql -u fwcloud_user -p -h localhost fwcloud
+   ```
+
+3. Check PID file:
+   ```bash
+   ls -la .pid
+   ```
+
+### Database Connection Issues
+
+- Verify MySQL/MariaDB is running
+- Check credentials in `.env` file
+- Ensure database exists and user has proper permissions
+
+### Permission Issues
+
+```bash
+# Ensure proper ownership
+sudo chown -R fwcloud:fwcloud /opt/fwcloud/api
+
+# Verify file permissions
+ls -la /opt/fwcloud/api
+```
+
+## Next Steps
+
+- [Configure the application](/advanced/configuration)
+- [Set up the database](/advanced/database)
+- [Deploy with Docker](/advanced/docker)
+- [Learn about contributing](/advanced/contributing)

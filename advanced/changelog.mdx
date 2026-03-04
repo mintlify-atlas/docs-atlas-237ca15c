@@ -1,0 +1,423 @@
+---
+title: Changelog
+description: Version history and release notes for FWCloud-API
+---
+
+## Overview
+
+This page provides an overview of FWCloud-API releases. For the complete changelog, see the [CHANGELOG.md](https://github.com/soltecsis/fwcloud-api/blob/main/CHANGELOG.md) file in the repository.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Latest Release
+
+### [2.3.1] - 2026-01-28
+
+#### Fixed
+- Node.js version in Dockerfile for Docker containers generation
+
+#### Added
+- `irqbalance` plugin support
+
+## Recent Releases
+
+### [2.3.0] - 2026-01-22
+
+#### Added
+- **VyOS Support**: Complete policy compiler for VyOS firewall platform
+  - VyOS-specific script templates (header and footer)
+  - API validation and compiler detection for VyOS
+- **Dangerous Rules Detection**: Identifies potentially risky firewall rules during compilation
+  - Warning/critical flags for dangerous rules
+  - Per-rule progress updates
+  - Configuration loaded from JSON with database persistence
+- **Enhanced Rule Management**:
+  - `firewallApplyToId` support for DHCP, Keepalived, and HAProxy rules
+  - Cluster-wide rule handling
+- **WebSocket Improvements**: Room management for FWCloud locks with previous lock owner information
+
+#### Changed
+- **Express 5 Migration**: Updated routes and E2E tests for Express 5
+- **Request Parameters**: Now accepts bracketed array syntax
+- **OpenVPN**: Configurations marked dirty on any option change
+- **Group Name Handling**: `sanitizeGroupName` handles null input and strips leading `!` characters
+- **Dependencies**: Updated npm dependencies; mocha pinned to 11.3.0
+
+#### Fixed
+- System services apply migration
+- Dangerous rules checks and loading
+- CLI startup with ESM yargs
+- API call for forcing FWCloud locks
+
+### [2.2.0] - 2025-09-30
+
+#### Added
+- VyOS policy compiler and templates
+- Force lock API call for FWClouds
+
+#### Fixed
+- Certificate name validation (no non-alphanumeric starting characters)
+
+### [2.1.5] - 2025-09-17
+
+#### Fixed
+- OpenVPN over SSH actions (block/sync/install/uninstall)
+- Axios vulnerability
+
+### [2.1.4] - 2025-09-11
+
+#### Fixed
+- Performance optimization in `/firewall/cloud/get` API call
+- Optimized firewall and cluster limit checking
+
+### [2.1.2] - 2025-09-09
+
+#### Added
+- `x-forwarded-for` header support for session IP tracking
+- User IP and name in failed FWCloud lock responses
+- Index on `ipobj.address` field
+- Standard TCP ports for Proxmox and Checkmk services
+
+#### Fixed
+- Updated npm packages
+- Node.js version in Docker CI (16 → 18)
+
+## Major Version: 2.1.0
+
+### [2.1.0] - 2025-09-04
+
+This was a significant feature release:
+
+#### Added
+- **Exclusive FWCloud Access**: Lock mechanism for concurrent editing
+  - Only one user can edit a FWCloud at a time
+  - Read-only mode for additional users
+- **AI Integration**: Query firewall policies using AI
+  - Integration with AI API (OpenAI)
+  - Natural language policy queries
+  - Configuration section for AI settings
+- **Multi-VPN Support**:
+  - WireGuard VPN management
+  - IPsec (strongSwan) VPN management
+  - Plugins for WireGuard and IPsec
+  - Systemctl management for VPN services
+- **Database Migrations**: Schema updates for new features
+- **Test Coverage**: Comprehensive tests for new features
+
+#### Fixed
+- Multiple bug fixes for stability and performance
+- Firewall mark modification bug
+- Updated Node.js packages
+
+## Major Version: 2.0.x
+
+### [2.0.16] - 2024-12-02
+
+#### Fixed
+- IPTables6 missing command bug
+
+### [2.0.15] - 2024-12-01
+
+#### Fixed
+- IPTables missing command on nft-only systems
+
+### [2.0.14] - 2024-11-27
+
+#### Fixed
+- Migration commands compatibility with recent TypeORM updates
+- OpenVPN validation issues
+- Updated Node.js packages
+
+### [2.0.13] - 2024-11-11
+
+#### Fixed
+- Automatic migration execution in `.deb` and `.rpm` packages
+
+### [2.0.4] - 2024-09-29
+
+Major service management update:
+
+#### Added
+- **HAProxy Service**: API calls and compiler
+- **Keepalived Service**: API calls and compiler
+- **DHCP Service**: API calls and compiler
+- **System Services**: New system node in firewall tree
+- **Systemctl Management**: API call for service control
+- **Agent Integration**: Get host information via FWCloud Agent
+
+#### Changed
+- Upgraded TypeORM to 0.3.20
+- Upgraded Socket.IO
+- Replaced `ip` package with `ipaddr.js`
+- Replaced `chalk` with `kleur`
+- Added Husky and lint-staged
+- ESLint and Prettier integration
+- Optimized tree creation performance
+
+## Major Version: 1.x
+
+### [1.9.2] - 2023-06-07
+
+#### Added
+- API call for package-based installation updates
+- Updated EASY-RSA and OpenVPN GUI installer
+
+### [1.9.0] - 2023-05-11
+
+#### Added
+- **Automated Packaging**: GitHub Actions for `.deb` and `.rpm` packages
+- Systemd service dependencies (MariaDB/MySQL)
+
+### [1.8.2] - 2023-03-23
+
+#### Added
+- ISC DHCP plugin
+- ISC Bind9 plugin
+
+### [1.8.0] - 2023-03-13
+
+#### Added
+- TLS certificate update script
+- Policy compiler improvements for command detection
+- Script safety checks (iptables/nft existence)
+
+#### Changed
+- PID file management
+
+### [1.7.2] - 2023-01-30
+
+#### Fixed
+- Security vulnerabilities (npm audit)
+- iptables-save import bug with multiport module
+
+### [1.7.1] - 2022-12-01
+
+#### Added
+- Indexes for `openvpn_status_history` table
+- Debug logs for OpenVPN history worker
+
+#### Fixed
+- Out of memory error in OpenVPN history worker
+
+### [1.7.0] - 2022-11-18
+
+#### Added
+- `standard:services:add` CLI command
+- Multiple plugins:
+  - Keepalived
+  - Suricata
+  - Zeek
+  - Elasticsearch
+  - Kibana
+  - Logstash
+  - Filebeat
+  - Web Safety Proxy
+  - DNS Safety
+  - CrowdSec
+  - NtopNG
+
+### [1.6.0] - 2022-09-22
+
+#### Added
+- **2FA Support**: Two-factor authentication
+- **OpenVPN History**: Status history archiving and CRON tasks
+- **Plugins Management**: API calls for plugin enable/disable
+- **Continents and Countries**: Filter by IP geolocation
+- **FWCloud Agent**: WebSocket integration
+- **Apply To**: Routes and routing policy application
+- **Policy Script**: Download and view functionality
+
+#### Changed
+- WebSocket for real-time plugin operations
+- Compressed backups (ZIP)
+- Improved OpenVPN history collection
+
+#### Fixed
+- Out of memory in OpenVPN history collector
+- ip6tables script logic errors
+- Session expiration in long plugin operations
+- CCD file sync issues
+- Special rules for new firewalls
+- Tree repair process
+
+### [1.5.0] - 2022-04-28
+
+#### Added
+- **MySQL 8 Support**
+- **Special Rules**:
+  - Hook script rule
+  - CrowdSec compatibility rule
+  - Fail2Ban compatibility rule
+- Docker automatic rule detection
+
+### [1.4.2] - 2022-03-07
+
+#### Added
+- **Docker Support**: Official Dockerfile
+- CORS configuration parameter
+
+#### Fixed
+- Restrictions check for cluster node removal
+- CLI commands protection (keys:generate, migration:data)
+
+### [1.4.0] - 2021-12-02
+
+#### Added
+- **FWCloud Agent Communication**: Firewall communication via agent
+- **OpenVPN Statistics**: History graphs and statistics
+
+#### Fixed
+- ValidationError response cleanup
+
+### [1.3.0] - 2021-09-22
+
+Major routing and compiler update:
+
+#### Added
+- **Advanced Routing Management**:
+  - Routing tables
+  - Static routes
+  - Routing policy rules
+  - Drag and drop interface
+- **NFTables Compiler**: New firewall policy compiler
+- **Routing Compiler**: Script generation for routing configuration
+- **Improved Where Used**: Includes routing features
+- **Compilation**: Multiple rules at once
+- Hundreds of new tests
+
+#### Fixed
+- Group and host management restrictions
+- Cluster node removal
+- Host information retrieval
+- Firewall status updates
+
+### [1.2.0] - 2021-04-30
+
+#### Added
+- **Hook Scripts**: Shell code before/after policy rules
+- **Extended Where Used**: More comprehensive search
+- **VPN Connection Status**: Enabled/disabled in tree
+- **Tree Node Info**: TCP/UDP port and IPv4/IPv6 address
+- Hundreds of IPTables compiler tests
+
+#### Fixed
+- Interface discovery in CentOS 7
+- Database password handling (MYSQL_PWD)
+- iptables-save import issues
+- FWCloud accounting rules
+- OpenVPN group deletion
+- IPTables compiler errors
+
+### [1.1.0] - 2021-03-18
+
+Major performance release:
+
+#### Added
+- **Performance Improvements**:
+  - API calls 10x faster
+  - IPTables compiler 40x faster
+- **iptables-save**: Import/export functionality
+- **Socket.IO v3**: Upgraded to version 3
+- Improved SSH error management
+- Rule metadata in compilation output
+
+#### Changed
+- Listen to localhost by default
+- Removed `policy_c` table
+
+#### Fixed
+- Standard objects cleanup
+- Multiport module limits
+- Session expiration
+- WebSocket connection handling
+
+## Version History Summary
+
+| Version | Release Date | Highlights |
+|---------|--------------|------------|
+| 2.3.1 | 2026-01-28 | Docker fixes, irqbalance plugin |
+| 2.3.0 | 2026-01-22 | VyOS support, dangerous rules detection |
+| 2.1.0 | 2025-09-04 | AI integration, Multi-VPN, exclusive locks |
+| 2.0.4 | 2024-09-29 | HAProxy, Keepalived, DHCP services |
+| 1.9.0 | 2023-05-11 | Automated packaging |
+| 1.8.0 | 2023-03-13 | TLS certificate management |
+| 1.7.0 | 2022-11-18 | Multiple security plugins |
+| 1.6.0 | 2022-09-22 | 2FA, OpenVPN history, plugins |
+| 1.5.0 | 2022-04-28 | MySQL 8, special rules |
+| 1.4.0 | 2021-12-02 | FWCloud Agent, OpenVPN statistics |
+| 1.3.0 | 2021-09-22 | Advanced routing, NFTables compiler |
+| 1.2.0 | 2021-04-30 | Hook scripts, performance tests |
+| 1.1.0 | 2021-03-18 | Major performance improvements |
+
+## Breaking Changes
+
+### Version 2.3.0
+- Express 5 migration may affect custom middleware or plugins
+
+### Version 2.0.4
+- TypeORM 0.3.20 upgrade may affect custom migrations
+
+### Version 1.5.0
+- MySQL 8 support requires schema adjustments
+
+### Version 1.4.0
+- FWCloud Agent required for firewall communication
+
+### Version 1.1.0
+- Removed `policy_c` table - migration required
+
+## Deprecations
+
+No current deprecations. Check future releases for planned deprecations.
+
+## Upgrade Guides
+
+### From 2.x to Latest
+
+```bash
+# Package installation
+sudo dpkg -i fwcloud-api_2.3.1.deb  # or .rpm
+
+# Manual installation
+npm run stop
+git pull
+npm install
+npm run build
+node fwcli migration:run
+npm start
+```
+
+### From 1.x to 2.x
+
+Major version upgrade requires careful migration:
+
+1. Backup database:
+   ```bash
+   mysqldump -u fwcloud_user -p fwcloud > backup_pre_v2.sql
+   ```
+
+2. Update application:
+   ```bash
+   npm run update
+   ```
+
+3. Verify FWCloud Agent compatibility
+
+4. Test all integrations
+
+## Security Updates
+
+Security-related fixes are highlighted in each release. Always update to the latest version for security patches.
+
+### Recent Security Fixes
+
+- **2.1.5**: Axios vulnerability
+- **1.7.2**: npm audit vulnerabilities
+- **1.1.0**: Session security improvements
+
+## Next Steps
+
+- [Installation guide](/advanced/installation)
+- [Configuration reference](/advanced/configuration)
+- [Contributing guidelines](/advanced/contributing)
+- [View full changelog on GitHub](https://github.com/soltecsis/fwcloud-api/blob/main/CHANGELOG.md)

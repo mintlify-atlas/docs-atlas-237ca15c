@@ -1,0 +1,334 @@
+---
+title: Check Compiled Rules
+description: Analyze compiled firewall rules with AI
+---
+
+## Check Compiled Rules
+
+`POST /fwclouds/:fwcloud/firewalls/:firewall/AIassistant/rules`
+
+Uses AI to analyze compiled firewall rules (individual iptables/nftables commands) for security issues, redundancies, and optimization opportunities.
+
+<Info>
+  This endpoint requires OpenAI API configuration. See [AI Assistant Configuration](/api-reference/ai/config) for setup.
+</Info>
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+### Request Body
+
+<ParamField body="rules" type="array" required>
+  Array of compiled rule objects to analyze
+</ParamField>
+
+<ParamField body="rules[].rule" type="string" required>
+  The compiled rule command (e.g., iptables command)
+</ParamField>
+
+<ParamField body="rules[].id" type="number">
+  Policy rule ID for reference
+</ParamField>
+
+<ParamField body="prompt" type="string">
+  Optional custom prompt or specific question
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.local/fwclouds/1/firewalls/1/AIassistant/rules \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "rules": [
+      {
+        "id": 1,
+        "rule": "iptables -A INPUT -p tcp --dport 22 -j ACCEPT"
+      },
+      {
+        "id": 2,
+        "rule": "iptables -A INPUT -p tcp -s 0.0.0.0/0 --dport 80 -j ACCEPT"
+      },
+      {
+        "id": 3,
+        "rule": "iptables -A INPUT -p tcp --dport 443 -j ACCEPT"
+      }
+    ],
+    "prompt": "Analyze these rules for security issues"
+  }'
+```
+
+```javascript JavaScript
+const rules = [
+  { id: 1, rule: 'iptables -A INPUT -p tcp --dport 22 -j ACCEPT' },
+  { id: 2, rule: 'iptables -A INPUT -p tcp -s 0.0.0.0/0 --dport 80 -j ACCEPT' },
+  { id: 3, rule: 'iptables -A INPUT -p tcp --dport 443 -j ACCEPT' }
+];
+
+const response = await fetch(
+  'https://api.fwcloud.local/fwclouds/1/firewalls/1/AIassistant/rules',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Cookie': sessionCookie
+    },
+    body: JSON.stringify({
+      rules,
+      prompt: 'Analyze these rules for security issues'
+    })
+  }
+);
+
+const analysis = await response.json();
+console.log(analysis.response);
+```
+
+### Response
+
+<ResponseField name="response" type="string">
+  AI-generated analysis with rule-specific feedback
+</ResponseField>
+
+<ResponseField name="rule_analysis" type="array">
+  Per-rule analysis results
+</ResponseField>
+
+<ResponseField name="rule_analysis[].rule_id" type="number">
+  Rule ID from request
+</ResponseField>
+
+<ResponseField name="rule_analysis[].severity" type="string">
+  Issue severity: `info`, `warning`, or `critical`
+</ResponseField>
+
+<ResponseField name="rule_analysis[].findings" type="array">
+  List of issues found
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  OpenAI model used
+</ResponseField>
+
+<ResponseField name="tokens_used" type="number">
+  Tokens consumed
+</ResponseField>
+
+```json
+{
+  "response": "Rule Analysis:\n\nRule 1 (ID: 1):\n⚠️ Warning: SSH port open to all sources\n- Recommendation: Restrict to specific management IPs\n- Add rate limiting to prevent brute force\n\nRule 2 (ID: 2):\nℹ️ Info: HTTP port correctly exposed\n- Redundant source specification (0.0.0.0/0 is implicit)\n- Consider adding rate limiting for DDoS protection\n\nRule 3 (ID: 3):\n✅ OK: HTTPS properly configured\n- No issues found",
+  "rule_analysis": [
+    {
+      "rule_id": 1,
+      "severity": "warning",
+      "findings": [
+        "SSH exposed to all sources - security risk",
+        "No rate limiting - vulnerable to brute force",
+        "Consider restricting to management network"
+      ]
+    },
+    {
+      "rule_id": 2,
+      "severity": "info",
+      "findings": [
+        "Redundant source specification",
+        "Consider adding rate limiting"
+      ]
+    },
+    {
+      "rule_id": 3,
+      "severity": "info",
+      "findings": ["No issues found"]
+      }
+  ],
+  "model": "gpt-4",
+  "tokens_used": 328
+}
+```
+
+## Analysis Types
+
+<Tabs>
+  <Tab title="Security Analysis">
+    Identify security vulnerabilities in rules:
+    
+    ```json
+    {
+      "prompt": "Identify security vulnerabilities and risky configurations"
+    }
+    ```
+    
+    AI checks for:
+    - Overly permissive source addresses
+    - Missing rate limiting
+    - Dangerous port exposures
+    - Missing connection state tracking
+  </Tab>
+  
+  <Tab title="Redundancy Check">
+    Find redundant or conflicting rules:
+    
+    ```json
+    {
+      "prompt": "Find redundant rules and optimization opportunities"
+    }
+    ```
+    
+    AI identifies:
+    - Duplicate rules
+    - Rules that can be combined
+    - Rules that never match (shadowed)
+    - Unnecessary explicit specifications
+  </Tab>
+  
+  <Tab title="Order Optimization">
+    Analyze rule ordering:
+    
+    ```json
+    {
+      "prompt": "Are these rules in optimal order for performance?"
+    }
+    ```
+    
+    AI suggests:
+    - Moving frequently-matched rules earlier
+    - Grouping related rules
+    - Optimizing chain traversal
+  </Tab>
+  
+  <Tab title="Compliance Check">
+    Check regulatory compliance:
+    
+    ```json
+    {
+      "prompt": "Do these rules comply with PCI DSS requirements?"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Severity Levels
+
+<CardGroup cols={3}>
+  <Card title="Critical" icon="circle-exclamation" color="#ef4444">
+    Serious security vulnerabilities that should be fixed immediately
+  </Card>
+  
+  <Card title="Warning" icon="triangle-exclamation" color="#f59e0b">
+    Potential issues that should be reviewed and addressed
+  </Card>
+  
+  <Card title="Info" icon="circle-info" color="#3b82f6">
+    Minor suggestions and optimization opportunities
+  </Card>
+</CardGroup>
+
+## Workflow Integration
+
+```javascript
+// Analyze policy rules during policy compilation
+async function compileAndAnalyze(fwcloudId, firewallId) {
+  // 1. Compile policy
+  const compileRes = await fetch(
+    `https://api.fwcloud.local/fwclouds/${fwcloudId}/firewalls/${firewallId}/policyRules/read`,
+    { headers: { Cookie: sessionCookie } }
+  );
+  const script = await compileRes.text();
+  
+  // 2. Extract individual rules
+  const rules = script
+    .split('\n')
+    .filter(line => line.startsWith('iptables'))
+    .map((rule, idx) => ({ id: idx + 1, rule }));
+  
+  // 3. Analyze rules
+  const analysisRes = await fetch(
+    `https://api.fwcloud.local/fwclouds/${fwcloudId}/firewalls/${firewallId}/AIassistant/rules`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
+      body: JSON.stringify({
+        rules,
+        prompt: 'Security and optimization analysis'
+      })
+    }
+  );
+  
+  const analysis = await analysisRes.json();
+  
+  // 4. Report critical issues
+  const critical = analysis.rule_analysis.filter(r => r.severity === 'critical');
+  if (critical.length > 0) {
+    console.error('CRITICAL ISSUES FOUND:');
+    critical.forEach(r => {
+      console.error(`Rule ${r.rule_id}:`, r.findings);
+    });
+  }
+  
+  return analysis;
+}
+```
+
+## Batch Analysis
+
+For large policies, batch rules into groups:
+
+```javascript
+const BATCH_SIZE = 20;
+
+for (let i = 0; i < rules.length; i += BATCH_SIZE) {
+  const batch = rules.slice(i, i + BATCH_SIZE);
+  const analysis = await analyzeRules(batch);
+  // Process analysis results
+}
+```
+
+<Tip>
+  Analyzing 10-20 rules per request provides good balance between cost and completeness.
+</Tip>
+
+## Error Responses
+
+<Accordion title="503 Service Unavailable">
+  AI Assistant not configured.
+  
+  ```json
+  {
+    "message": "AI Assistant not available",
+    "details": "OpenAI API not configured"
+  }
+  ```
+</Accordion>
+
+<Accordion title="400 Bad Request">
+  Invalid rules format.
+  
+  ```json
+  {
+    "message": "Invalid rules format",
+    "details": "Rules array is required"
+  }
+  ```
+</Accordion>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Check Policy Script" icon="file-code" href="/api-reference/ai/check-policy">
+    Analyze complete policy script
+  </Card>
+  <Card title="AI Configuration" icon="gear" href="/api-reference/ai/config">
+    Configure AI assistant
+  </Card>
+  <Card title="Compile Policy" icon="gears" href="/api-reference/policy-rules/read">
+    Get compiled policy rules
+  </Card>
+</CardGroup>

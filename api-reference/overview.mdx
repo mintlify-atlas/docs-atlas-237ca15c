@@ -1,0 +1,193 @@
+---
+title: API Overview
+description: Learn about the FWCloud API architecture, base URL, and request/response formats
+---
+
+## Introduction
+
+The FWCloud API is a RESTful API that enables you to programmatically manage your firewall configurations, VPN connections, routing rules, and system services. The API uses standard HTTP methods and returns JSON-encoded responses.
+
+## Base URL
+
+The API base URL depends on your deployment configuration:
+
+<CodeGroup>
+```bash Development (HTTP)
+http://localhost:3131
+```
+
+```bash Production (HTTPS)
+https://your-domain.com:3131
+```
+</CodeGroup>
+
+The default port is `3131`, but this can be configured in your server settings.
+
+<Note>
+In production environments, HTTPS is strongly recommended and can be enforced via configuration.
+</Note>
+
+## Protocol
+
+The API supports both HTTP and HTTPS protocols:
+
+- **Development**: HTTP is used by default for ease of local testing
+- **Production**: HTTPS is recommended and can be enforced with TLS certificates
+
+HTTPS configuration requires:
+- SSL/TLS certificate (`cert`)
+- Private key (`key`)
+- Optional CA bundle (`ca_bundle`)
+
+## Request Format
+
+### HTTP Methods
+
+The API uses standard HTTP methods:
+
+| Method | Description |
+|--------|-------------|
+| `GET` | Retrieve resources |
+| `POST` | Create new resources |
+| `PUT` | Update existing resources |
+| `DELETE` | Remove resources |
+
+### Headers
+
+All requests should include:
+
+```http
+Content-Type: application/json
+```
+
+### Request Body
+
+Request bodies should be formatted as JSON:
+
+```json
+{
+  "name": "My FWCloud",
+  "comment": "Production firewall configuration"
+}
+```
+
+## Response Format
+
+### Success Response
+
+Successful API responses follow this structure:
+
+```json
+{
+  "status": 200,
+  "response": "OK",
+  "data": {
+    "id": 1,
+    "name": "My FWCloud",
+    "created_at": "2024-03-04T10:00:00Z"
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | number | HTTP status code |
+| `response` | string | HTTP status message |
+| `data` | object/array | Response payload (for successful requests) |
+| `message` | string | Error message (for failed requests) |
+| `errors` | object | Validation errors (when applicable) |
+| `stack` | array | Error stack trace (only in non-production environments) |
+
+### Array Response
+
+When returning multiple items:
+
+```json
+{
+  "status": 200,
+  "response": "OK",
+  "data": [
+    {
+      "id": 1,
+      "name": "Firewall 1"
+    },
+    {
+      "id": 2,
+      "name": "Firewall 2"
+    }
+  ]
+}
+```
+
+### Empty Response
+
+For operations that don't return data (like DELETE):
+
+```json
+{
+  "status": 204,
+  "response": "No Content",
+  "data": null
+}
+```
+
+## HTTP Status Codes
+
+The API uses standard HTTP status codes:
+
+### Success Codes (2xx)
+
+| Code | Message | Description |
+|------|---------|-------------|
+| 200 | OK | Request successful |
+| 201 | Created | Resource created successfully |
+| 202 | Accepted | Request accepted for processing |
+| 204 | No Content | Request successful with no response body |
+
+### Client Error Codes (4xx)
+
+| Code | Message | Description |
+|------|---------|-------------|
+| 400 | Bad Request | Invalid request format or parameters |
+| 401 | Unauthorized | Authentication required or session expired |
+| 403 | Forbidden | Insufficient permissions or resource limit reached |
+| 404 | Not Found | Resource does not exist |
+| 422 | Unprocessable Entity | Validation error |
+
+### Server Error Codes (5xx)
+
+| Code | Message | Description |
+|------|---------|-------------|
+| 500 | Internal Server Error | Unexpected server error |
+| 503 | Service Unavailable | Service temporarily unavailable |
+
+## Content Type
+
+All API responses use the `application/json` content type, except for file downloads which use appropriate MIME types.
+
+## Pagination
+
+Currently, the API returns complete result sets. Pagination may be implemented in future versions for endpoints returning large datasets.
+
+## ETags
+
+ETags are disabled in the API to ensure consistent response handling. Every request receives a full response without caching behavior.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Learn how to authenticate API requests
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/api-reference/errors">
+    Understand error codes and how to handle them
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/api-reference/rate-limits">
+    Learn about rate limiting policies
+  </Card>
+  <Card title="API Endpoints" icon="code" href="/api-reference/fwclouds/create">
+    Explore available API endpoints
+  </Card>
+</CardGroup>

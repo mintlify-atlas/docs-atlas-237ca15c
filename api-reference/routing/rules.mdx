@@ -1,0 +1,205 @@
+---
+title: 'Routing Rules'
+description: 'Manage routing policy rules for advanced routing'
+---
+
+## List Routing Rules
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingRules
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingRules" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves all routing rules for a firewall.
+
+## Get Grid View
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingRules/grid
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingRules/grid" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves routing rules in grid format for UI display.
+
+## Get Routing Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingRules/:routingRule
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Compile Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingRules/:routingRule/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingRules/1/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles a routing rule into executable script.
+
+**Response**
+```json
+{
+  "cs": "ip rule add from 10.0.0.0/24 table 100 priority 1000",
+  "type": "Rule"
+}
+```
+
+## Compile All Rules
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingRules/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingRules/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles all routing rules for the firewall.
+
+## Create Routing Rule
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/routingRules
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/routingRules" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "10.0.0.0/24",
+    "to": "192.168.0.0/16",
+    "routingTableId": 100,
+    "priority": 1000,
+    "comment": "Route traffic from internal network",
+    "active": true
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `from` (string, optional) - Source network (CIDR notation)
+- `to` (string, optional) - Destination network (CIDR notation)
+- `routingTableId` (integer, required) - Target routing table ID
+- `priority` (integer, optional) - Rule priority (lower = higher priority)
+- `comment` (string, optional) - Description
+- `active` (boolean, optional) - Whether rule is enabled
+
+## Update Routing Rule
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingRules/:routingRule
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "priority": 500,
+    "active": false
+  }'
+```
+</CodeGroup>
+
+## Copy Rules
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/routingRules/copy
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/routingRules/copy" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": ["1", "2"],
+    "to": 5,
+    "offset": "below"
+  }'
+```
+</CodeGroup>
+
+Copies routing rules to a new position.
+
+**Request Body**
+- `rules` (array, required) - Rule IDs to copy
+- `to` (integer, required) - Target rule ID to position relative to
+- `offset` (string, required) - Position: "above" or "below"
+
+## Move Rules
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingRules/move
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingRules/move" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": ["1", "2"],
+    "to": 5,
+    "offset": "above"
+  }'
+```
+</CodeGroup>
+
+Moves rules to a new position.
+
+## Move From
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingRules/moveFrom
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingRules/moveFrom" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+Moves configuration from one rule to another.
+
+**Request Body**
+- `fromId` (integer, required) - Source rule ID
+- `toId` (integer, required) - Target rule ID
+
+## Bulk Update
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingRules/bulkUpdate?rules[]=1&rules[]=2
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingRules/bulkUpdate?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "active": false
+  }'
+```
+</CodeGroup>
+
+Updates multiple routing rules simultaneously.
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to update
+
+## Delete Routing Rule
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/routingRules/:routingRule
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/routingRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Bulk Remove
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/routingRules/bulkRemove?rules[]=1&rules[]=2
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/routingRules/bulkRemove?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Deletes multiple routing rules at once.
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to delete

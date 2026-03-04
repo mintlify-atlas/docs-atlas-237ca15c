@@ -1,0 +1,207 @@
+---
+title: 'Routes'
+description: 'Manage individual routes within routing tables'
+---
+
+## List Routes
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves all routes in a routing table.
+
+## Get Route
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/:route
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Compile Route
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/:route/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/1/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles a single route into executable script.
+
+## Create Route
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "10.0.0.0/24",
+    "gateway": "192.168.1.1",
+    "interface": "eth0",
+    "metric": 100,
+    "comment": "Route to internal network",
+    "active": true
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `to` (string, optional) - Destination network (CIDR notation)
+- `gateway` (string, optional) - Gateway IP address
+- `interface` (string, optional) - Network interface
+- `metric` (integer, optional) - Route metric/priority
+- `comment` (string, optional) - Description
+- `active` (boolean, optional) - Whether route is enabled
+
+## Update Route
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/:route
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gateway": "192.168.1.254",
+    "metric": 50
+  }'
+```
+</CodeGroup>
+
+## Copy Routes
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/copy
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/copy" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "routes": ["1", "2"],
+    "to": 5,
+    "offset": "below"
+  }'
+```
+</CodeGroup>
+
+Copies routes to a new position.
+
+**Request Body**
+- `routes` (array, required) - Route IDs to copy
+- `to` (integer, required) - Target route ID to position relative to
+- `offset` (string, required) - Position: "above" or "below"
+
+## Move Routes
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/move
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/move" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "routes": ["1", "2"],
+    "to": 5,
+    "offset": "above"
+  }'
+```
+</CodeGroup>
+
+Moves routes to a new position in the table.
+
+## Move To Gateway
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/moveToGateway
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/moveToGateway" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+Moves gateway configuration from one route to another.
+
+**Request Body**
+- `fromId` (integer, required) - Source route ID
+- `toId` (integer, required) - Target route ID
+
+## Move To
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/moveTo
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/moveTo" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+Moves configuration from one route to another.
+
+## Move Interface
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/moveInterface
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/moveInterface" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+Moves interface configuration from one route to another.
+
+## Bulk Update
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/bulkUpdate?routes[]=1&routes[]=2
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/bulkUpdate?routes[]=1&routes[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "active": false
+  }'
+```
+</CodeGroup>
+
+Updates multiple routes simultaneously.
+
+**Query Parameters**
+- `routes` (array, required) - Route IDs to update
+
+## Delete Route
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/:route
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Bulk Remove
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/routingTables/:routingTable/routes/bulkRemove?routes[]=1&routes[]=2
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/routingTables/1/routes/bulkRemove?routes[]=1&routes[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Deletes multiple routes at once.
+
+**Query Parameters**
+- `routes` (array, required) - Route IDs to delete

@@ -1,0 +1,375 @@
+---
+title: Error Handling
+description: Understand FWCloud API error codes, error responses, and how to handle errors effectively
+---
+
+## Error Response Format
+
+When an API request fails, the response follows a consistent error format:
+
+```json
+{
+  "status": 404,
+  "response": "Not Found",
+  "message": "The requested resource could not be found",
+  "errors": {},
+  "stack": []
+}
+```
+
+### Error Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | number | HTTP status code indicating the error type |
+| `response` | string | Human-readable status message |
+| `message` | string | Detailed error description |
+| `errors` | object | Validation errors or additional error details |
+| `stack` | array | Stack trace (only available in development/test environments) |
+
+<Warning>
+Stack traces are only included in non-production environments for security reasons.
+</Warning>
+
+## HTTP Status Codes
+
+### 400 Bad Request
+
+The request is malformed or contains invalid parameters.
+
+```json
+{
+  "status": 400,
+  "response": "Bad Request",
+  "message": "Invalid request parameters"
+}
+```
+
+**Common Causes:**
+- Malformed JSON in request body
+- Missing required parameters
+- Invalid parameter types
+- Invalid request format
+
+**Resolution:**
+- Verify request body is valid JSON
+- Check all required parameters are included
+- Ensure parameter types match API specification
+
+### 401 Unauthorized
+
+Authentication is required or the session has expired.
+
+```json
+{
+  "status": 401,
+  "response": "Unauthorized",
+  "message": "Authentication required"
+}
+```
+
+**Common Causes:**
+- No active session
+- Session expired due to inactivity
+- Invalid session data
+- Missing authentication credentials
+
+**Resolution:**
+- Log in to create a new session
+- Ensure session cookies are being sent with requests
+- Check session hasn't exceeded keepalive timeout
+
+### 403 Forbidden
+
+The authenticated user doesn't have permission to access the resource.
+
+```json
+{
+  "status": 403,
+  "response": "Forbidden",
+  "message": "Insufficient permissions to access this resource"
+}
+```
+
+**Common Causes:**
+- User lacks required role (e.g., admin role required)
+- Resource limit reached
+- User doesn't have access to the FWCloud
+- Action restricted by policy
+
+**Example - Resource Limit:**
+
+```json
+{
+  "status": 403,
+  "response": "Forbidden",
+  "message": "FWCloud limit reached",
+  "errors": {
+    "limit": "Maximum number of FWClouds exceeded"
+  }
+}
+```
+
+**Resolution:**
+- Verify user has the required role
+- Check resource usage against configured limits
+- Ensure user has access to the target FWCloud
+
+### 404 Not Found
+
+The requested resource does not exist.
+
+```json
+{
+  "status": 404,
+  "response": "Not Found",
+  "message": "FWCloud with id 999 not found"
+}
+```
+
+**Common Causes:**
+- Invalid resource ID
+- Resource was deleted
+- Incorrect API endpoint URL
+- TypeORM EntityNotFoundError
+
+**Resolution:**
+- Verify the resource ID exists
+- Check the endpoint URL is correct
+- Ensure the resource hasn't been deleted
+
+### 422 Unprocessable Entity
+
+The request is well-formed but contains validation errors.
+
+```json
+{
+  "status": 422,
+  "response": "Unprocessable Entity",
+  "message": "The given data was invalid",
+  "errors": {
+    "name": [
+      "The name field is required"
+    ],
+    "port": [
+      "The port must be between 1 and 65535"
+    ]
+  }
+}
+```
+
+**Common Causes:**
+- Failed validation rules
+- Invalid data format
+- Business logic constraints violated
+- Required fields missing
+
+**Resolution:**
+- Review the `errors` object for specific field errors
+- Ensure all required fields are provided
+- Validate data meets the specified constraints
+
+### 500 Internal Server Error
+
+An unexpected error occurred on the server.
+
+```json
+{
+  "status": 500,
+  "response": "Internal Server Error",
+  "message": "An unexpected error occurred",
+  "stack": [
+    "Error: Database connection failed",
+    "    at DatabaseManager.connect (/src/database/manager.ts:45:15)"
+  ]
+}
+```
+
+**Common Causes:**
+- Database connection issues
+- Unhandled exceptions
+- System resource exhaustion
+- Configuration errors
+
+**Resolution:**
+- Check server logs for detailed error information
+- Verify database connectivity
+- Contact system administrator
+- Retry the request after a short delay
+
+### 503 Service Unavailable
+
+The service is temporarily unavailable.
+
+```json
+{
+  "status": 503,
+  "response": "Service Unavailable",
+  "message": "Service is under maintenance"
+}
+```
+
+**Common Causes:**
+- Server maintenance
+- Database unavailable
+- System overload
+
+**Resolution:**
+- Wait and retry after a short delay
+- Check service status page
+- Implement exponential backoff retry strategy
+
+## Session Errors
+
+### Session Expired
+
+Sessions expire after a period of inactivity. The keepalive timeout is configurable.
+
+```json
+{
+  "status": 400,
+  "response": "Bad Request",
+  "message": "Session expired"
+}
+```
+
+**Prevention:**
+- Send periodic keepalive requests (e.g., to `/ping`)
+- Monitor session `keepalive_ts` timestamp
+- Implement automatic re-authentication
+
+### Bad Session
+
+Session data is invalid or corrupted.
+
+```json
+{
+  "status": 400,
+  "response": "Bad Request",
+  "message": "Invalid session data"
+}
+```
+
+**Resolution:**
+- Clear session cookies
+- Log in again to create a new session
+
+## Exception Types
+
+The API uses different exception classes for different error scenarios:
+
+| Exception | Status Code | Description |
+|-----------|-------------|-------------|
+| `HttpException` | Varies | Base exception for HTTP errors |
+| `AuthorizationException` | 401 | Authentication failure |
+| `NotFoundException` | 404 | Resource not found |
+| `ValidationException` | 422 | Validation errors |
+| `InternalServerException` | 500 | Internal server error |
+| `ServiceUnavailableException` | 503 | Service unavailable |
+
+## Error Logging
+
+All errors are logged to the server log files with stack traces:
+
+- Error message and stack trace are written to logs
+- Request details are logged for debugging
+- Sensitive information is excluded from client responses
+
+<Note>
+In production mode, stack traces are not included in API responses for security reasons.
+</Note>
+
+## Best Practices
+
+### 1. Handle Errors Gracefully
+
+```javascript
+try {
+  const response = await fetch('/api/fwclouds/1', {
+    method: 'GET',
+    credentials: 'include'
+  });
+  
+  const data = await response.json();
+  
+  if (data.status !== 200) {
+    console.error('API Error:', data.message);
+    // Handle specific error codes
+    switch (data.status) {
+      case 401:
+        // Redirect to login
+        break;
+      case 404:
+        // Show not found message
+        break;
+      default:
+        // Show general error
+    }
+  }
+} catch (error) {
+  console.error('Network error:', error);
+}
+```
+
+### 2. Check Validation Errors
+
+```javascript
+if (data.status === 422 && data.errors) {
+  // Display field-specific errors
+  Object.keys(data.errors).forEach(field => {
+    console.error(`${field}: ${data.errors[field].join(', ')}`);
+  });
+}
+```
+
+### 3. Implement Retry Logic
+
+```javascript
+async function apiRequest(url, options, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      
+      if (data.status >= 500 && i < retries - 1) {
+        // Retry on server errors
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        continue;
+      }
+      
+      return data;
+    } catch (error) {
+      if (i === retries - 1) throw error;
+    }
+  }
+}
+```
+
+### 4. Monitor Session Status
+
+```javascript
+// Send keepalive requests periodically
+setInterval(async () => {
+  await fetch('/ping', {
+    method: 'PUT',
+    credentials: 'include'
+  });
+}, 60000); // Every 60 seconds
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api-reference/overview">
+    Learn about response formats and status codes
+  </Card>
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Understand authentication and sessions
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/api-reference/rate-limits">
+    Learn about rate limiting policies
+  </Card>
+  <Card title="API Endpoints" icon="code" href="/api-reference/fwclouds/create">
+    Explore available API endpoints
+  </Card>
+</CardGroup>

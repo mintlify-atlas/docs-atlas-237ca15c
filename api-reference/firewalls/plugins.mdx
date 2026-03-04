@@ -1,0 +1,179 @@
+---
+title: 'Install Firewall Plugin'
+openapi: 'POST /fwclouds/:fwcloud/firewalls/plugin'
+---
+
+Installs or enables a plugin on a firewall agent.
+
+## Authentication
+
+Requires authentication and permissions on the FWCloud.
+
+## Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+## Request Body
+
+<ParamField body="communication" type="string" required>
+  Communication method: `agent` (SSH not supported for plugin installation)
+</ParamField>
+
+<ParamField body="host" type="string" required>
+  Hostname or IP address of the firewall
+</ParamField>
+
+<ParamField body="port" type="number" required>
+  Port number for agent communication (typically 33033)
+</ParamField>
+
+<ParamField body="protocol" type="string" required>
+  Protocol for agent communication: `http` or `https`
+</ParamField>
+
+<ParamField body="apikey" type="string" required>
+  API key for agent authentication (PGP encrypted)
+</ParamField>
+
+<ParamField body="plugin" type="string" required>
+  Plugin identifier to install. Available plugins:
+  - `openvpn` - OpenVPN server
+  - `wireguard` - WireGuard VPN
+  - `ipsec` - IPSec VPN
+  - `haproxy` - HAProxy load balancer
+  - `keepalived` - Keepalived high availability
+  - `isc-dhcp` - ISC DHCP server
+  - `isc-bind9` - ISC BIND9 DNS server
+  - `geoip` - GeoIP blocking
+  - `crowdsec` - CrowdSec intrusion prevention
+  - `suricata` - Suricata IDS/IPS
+  - `ntopng` - ntopng network monitoring
+  - `zeek` - Zeek network security monitor
+  - `elasticsearch` - Elasticsearch
+  - `filebeat` - Filebeat log shipper
+  - `kibana` - Kibana visualization
+  - `logstash` - Logstash data processor
+  - `websafety` - Web content filtering
+  - `dnssafety` - DNS content filtering
+  - `irqbalance` - IRQ load balancing
+</ParamField>
+
+<ParamField body="enable" type="boolean" required>
+  Whether to enable the plugin after installation (`true`) or disable it (`false`)
+</ParamField>
+
+<ParamField body="channel_id" type="string">
+  Optional WebSocket channel ID for receiving real-time installation progress updates
+</ParamField>
+
+## Response
+
+Returns the result of the plugin installation operation.
+
+<ResponseField name="success" type="boolean">
+  Whether the plugin installation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Status message about the installation
+</ResponseField>
+
+<ResponseField name="plugin" type="string">
+  The plugin that was installed
+</ResponseField>
+
+<ResponseField name="enabled" type="boolean">
+  Whether the plugin is now enabled
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/plugin \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "communication": "agent",
+    "host": "192.168.1.100",
+    "port": 33033,
+    "protocol": "https",
+    "apikey": "encrypted_api_key",
+    "plugin": "openvpn",
+    "enable": true,
+    "channel_id": "install-progress-123"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Plugin installed and enabled successfully",
+  "plugin": "openvpn",
+  "enabled": true
+}
+```
+
+## Progress Tracking
+
+When a `channel_id` is provided, installation progress is streamed via WebSocket:
+
+```json
+{
+  "status": "progress",
+  "message": "Installing OpenVPN packages...",
+  "progress": 45
+}
+```
+
+```json
+{
+  "status": "progress",
+  "message": "Configuring OpenVPN service...",
+  "progress": 75
+}
+```
+
+## Plugin Installation Process
+
+The plugin installation typically involves:
+
+1. Checking system requirements
+2. Downloading required packages
+3. Installing dependencies
+4. Configuring the plugin service
+5. Starting/enabling the service (if `enable: true`)
+6. Verifying installation
+
+## Errors
+
+<ResponseField name="404" type="error">
+  Not Found - FWCloud does not exist
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  Forbidden - Insufficient permissions
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Bad Request - Invalid plugin name or parameters
+</ResponseField>
+
+<ResponseField name="500" type="error">
+  Internal Server Error - Installation failed
+</ResponseField>
+
+<ResponseField name="501" type="error">
+  Not Implemented - Plugin installation not supported via this communication method
+</ResponseField>
+
+## Notes
+
+- Plugin installation requires agent communication (SSH is not supported)
+- Installation may take several minutes depending on the plugin and system
+- Some plugins may require system restart
+- Plugin availability depends on the firewall's operating system
+- The API key must be PGP encrypted before sending

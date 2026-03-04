@@ -1,0 +1,450 @@
+---
+title: Managing Firewalls
+description: Complete guide to adding, configuring, and managing firewalls in FWCloud API
+---
+
+## Overview
+
+FWCloud API supports managing multiple firewall types with different compilers:
+
+- **IPTables**: Traditional Linux netfilter firewall
+- **NFTables**: Modern Linux packet filtering framework
+- **VyOS**: Network operating system based on Debian
+
+Each firewall can operate independently or as part of a cluster for high availability.
+
+## Firewall Communication Methods
+
+FWCloud supports two communication methods to connect to firewalls:
+
+<AccordionGroup>
+  <Accordion title="SSH Communication" icon="terminal">
+    Traditional SSH-based communication for Linux firewalls.
+    
+    **Configuration**:
+    - Communication type: `ssh`
+    - Default port: 22
+    - Authentication: Username/password (encrypted)
+    - Requires: SSH server on firewall
+    
+    **Use cases**:
+    - Standard Linux servers
+    - VyOS routers
+    - Any device with SSH access
+    
+    **Example**:
+    ```typescript
+    {
+      install_communication: 'ssh',
+      install_user: 'admin',
+      install_pass: 'encrypted_password',
+      install_port: 22,
+      install_ipobj: 123  // IP object ID
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Agent Communication" icon="robot">
+    Modern agent-based communication using REST API.
+    
+    **Configuration**:
+    - Communication type: `agent`
+    - Protocol: HTTP or HTTPS
+    - Default port: 33033
+    - Authentication: API key
+    - Requires: FWCloud Agent installed
+    
+    **Use cases**:
+    - Firewalls with FWCloud Agent
+    - Enhanced security with API keys
+    - Better performance for frequent operations
+    
+    **Example**:
+    ```typescript
+    {
+      install_communication: 'agent',
+      install_protocol: 'https',
+      install_apikey: 'encrypted_api_key',
+      install_port: 33033,
+      install_ipobj: 123
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Adding a Firewall
+
+<Steps>
+  <Step title="Create firewall object">
+    Use the API to create a new firewall:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer <token>" \
+      -d '{
+        "name": "Production Firewall",
+        "comment": "Main edge firewall",
+        "fwcloud": 1,
+        "install_communication": "ssh",
+        "install_port": 22,
+        "save_user_pass": 1
+      }'
+    ```
+  </Step>
+
+  <Step title="Configure network interfaces">
+    Add network interfaces to the firewall:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/interfaces \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "eth0",
+        "type": "ethernet",
+        "ip_version": 4
+      }'
+    ```
+  </Step>
+
+  <Step title="Assign IP addresses">
+    Add IP addresses to interfaces. These become IP objects that can be used in policies.
+    
+    ```bash
+    curl -X POST https://api.fwcloud.net/ipobjs \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "WAN IP",
+        "address": "203.0.113.10",
+        "netmask": "/24",
+        "type": 5,
+        "interface": 1
+      }'
+    ```
+  </Step>
+
+  <Step title="Set compiler type">
+    Configure which policy compiler to use:
+    
+    - **IPTables** (default): `options & 0xf000 == 0x0000`
+    - **NFTables**: `options & 0xf000 == 0x1000`
+    - **VyOS**: `options & 0xf000 == 0x2000`
+    
+    The compiler is stored in the 4 most significant bits of the 16-bit `options` field.
+  </Step>
+</Steps>
+
+## Firewall Options
+
+Firewall behavior is controlled by the `options` bitmask field:
+
+```typescript
+enum FireWallOptMask {
+  STATEFUL = 0x0001,           // Enable stateful filtering
+  IPv4_FORWARDING = 0x0002,    // Enable IPv4 forwarding
+  IPv6_FORWARDING = 0x0004,    // Enable IPv6 forwarding
+  DEBUG = 0x0008,              // Enable shell debug mode
+  LOG_ALL = 0x0010,            // Log all packets
+  DOCKER_COMPAT = 0x0020,      // Docker compatibility mode
+  CROWDSEC_COMPAT = 0x0040,    // CrowdSec integration
+  FAIL2BAN_COMPAT = 0x0080,    // Fail2Ban integration
+  PDR_WARNING = 0x0100,        // Warn on dangerous rules
+  PDR_CRITICAL = 0x0200,       // Block dangerous rules
+}
+```
+
+### Example Configurations
+
+<CodeGroup>
+```typescript IPTables with stateful filtering
+const options = 
+  0x0000 |                    // IPTables compiler
+  FireWallOptMask.STATEFUL |  // Stateful filtering
+  FireWallOptMask.IPv4_FORWARDING;
+// Result: 0x0003
+```
+
+```typescript NFTables with security features
+const options = 
+  0x1000 |                         // NFTables compiler
+  FireWallOptMask.STATEFUL |
+  FireWallOptMask.CROWDSEC_COMPAT |
+  FireWallOptMask.PDR_WARNING;
+// Result: 0x1141
+```
+
+```typescript VyOS configuration
+const options = 
+  0x2000 |                         // VyOS compiler
+  FireWallOptMask.STATEFUL |
+  FireWallOptMask.IPv4_FORWARDING |
+  FireWallOptMask.IPv6_FORWARDING;
+// Result: 0x2007
+```
+</CodeGroup>
+
+## Plugin Flags
+
+Enable additional features and integrations:
+
+```typescript
+enum PluginsFlags {
+  openvpn = 'openvpn',
+  wireguard = 'wireguard',
+  ipsec = 'ipsec',
+  geoip = 'geoip',
+  crowdsec = 'crowdsec',
+  ntopng = 'ntopng',
+  suricata = 'suricata',
+  keepalived = 'keepalived',
+  haproxy = 'haproxy',
+  isc_dhcp = 'isc-dhcp',
+  isc_bind9 = 'isc-bind9',
+  elasticsearch = 'elasticsearch',
+  kibana = 'kibana',
+  filebeat = 'filebeat',
+}
+```
+
+Enable plugins through the API:
+
+```bash
+curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "plugins": ["openvpn", "wireguard", "crowdsec"]
+  }'
+```
+
+## Firewall Clusters
+
+Create high-availability firewall clusters:
+
+<Steps>
+  <Step title="Create cluster">
+    ```bash
+    curl -X POST https://api.fwcloud.net/fwclouds/1/clusters \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "HA Cluster 1",
+        "comment": "Production HA cluster"
+      }'
+    ```
+  </Step>
+
+  <Step title="Add firewalls to cluster">
+    Assign firewalls to the cluster:
+    
+    ```bash
+    curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cluster": 1,
+        "fwmaster": 1
+      }'
+    ```
+    
+    <Info>
+      Set `fwmaster: 1` for the primary node and `fwmaster: 0` for secondary nodes.
+    </Info>
+  </Step>
+
+  <Step title="Synchronize configuration">
+    Policies applied to a cluster are automatically distributed to all member firewalls.
+  </Step>
+</Steps>
+
+## Managing Firewall Status
+
+Firewall status indicates compilation and installation state:
+
+| Status | Description |
+|--------|-------------|
+| `0` | Clean - no changes needed |
+| `1` | Modified - needs compilation |
+| `2` | Compiled - ready for installation |
+| `3` | Error - compilation or installation failed |
+
+### Reset Compilation Status
+
+```typescript
+firewall.status = 0;
+firewall.compiled_at = null;
+firewall.installed_at = null;
+await firewall.resetCompilationStatus();
+```
+
+### Check for Marked Rules
+
+Determine if a firewall uses advanced marking features:
+
+```typescript
+const hasMarks = await firewall.hasMarkedRules();
+if (hasMarks) {
+  console.log('Firewall uses traffic marking');
+}
+```
+
+## Testing Firewall Connectivity
+
+<Tabs>
+  <Tab title="SSH">
+    Test SSH connectivity:
+    
+    ```bash
+    ssh -p 22 admin@firewall.example.com "echo 'Connection successful'"
+    ```
+    
+    From the API:
+    ```typescript
+    const communication = await firewall.getCommunication();
+    const result = await communication.test();
+    ```
+  </Tab>
+  
+  <Tab title="Agent">
+    Test Agent connectivity:
+    
+    ```bash
+    curl -k -H "Authorization: Bearer <apikey>" \
+      https://firewall.example.com:33033/api/v1/status
+    ```
+    
+    Expected response:
+    ```json
+    {
+      "status": "ok",
+      "version": "1.0.0"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Updating Firewall Configuration
+
+Update firewall settings:
+
+```bash
+curl -X PUT https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Firewall Name",
+    "comment": "Updated description",
+    "options": 4099,
+    "install_port": 2222,
+    "save_user_pass": 1
+  }'
+```
+
+<Warning>
+  Changing communication settings requires stopping active connections first.
+</Warning>
+
+## Deleting a Firewall
+
+<Steps>
+  <Step title="Verify deletion">
+    Ensure you want to delete the firewall and all its data:
+    - All policy rules will be deleted
+    - All VPN configurations will be removed
+    - All interfaces and IP objects will be deleted
+    - Policy scripts in the data directory will be removed
+  </Step>
+
+  <Step title="Delete firewall">
+    ```bash
+    curl -X DELETE https://api.fwcloud.net/fwclouds/1/firewalls/1 \
+      -H "Authorization: Bearer <token>"
+    ```
+    
+    The deletion process:
+    1. Removes all policy rules
+    2. Deletes VPN configurations (OpenVPN, WireGuard, IPSec)
+    3. Removes network interfaces and IP objects
+    4. Cleans up tree structure
+    5. Deletes policy data directory
+    6. Removes database records
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Cannot Connect to Firewall
+
+**SSH Issues**:
+- Verify credentials: Check username/password
+- Test connectivity: `ping firewall-ip`
+- Verify SSH service: `systemctl status sshd` on firewall
+- Check firewall rules: Ensure management access is allowed
+
+**Agent Issues**:
+- Verify agent is running: `systemctl status fwcloud-agent`
+- Check API key validity
+- Test HTTPS certificate
+- Review agent logs: `journalctl -u fwcloud-agent`
+
+### Compilation Errors
+
+If firewall status shows error (3):
+
+1. Check policy rules for syntax errors
+2. Verify all IP objects are properly defined
+3. Review compiler logs in policy data directory
+4. Reset and recompile:
+   ```bash
+   curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/compile
+   ```
+
+### Interface Configuration
+
+**Problem**: Interfaces not detected
+
+**Solution**:
+- SSH to firewall and run `ip addr show`
+- Manually add interfaces through API
+- Verify interface naming matches firewall configuration
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Security">
+    - Always use SSH key authentication when possible
+    - Rotate API keys regularly
+    - Enable `save_user_pass` only on secure networks
+    - Use HTTPS for Agent communication
+    - Enable dangerous rule detection (PDR_WARNING/PDR_CRITICAL)
+  </Accordion>
+
+  <Accordion title="High Availability">
+    - Use clusters for critical firewalls
+    - Set one firewall as master (`fwmaster: 1`)
+    - Ensure network connectivity between cluster nodes
+    - Test failover scenarios regularly
+    - Keep cluster configurations synchronized
+  </Accordion>
+
+  <Accordion title="Maintenance">
+    - Document firewall purpose in comment field
+    - Use descriptive interface names
+    - Regularly backup configurations
+    - Monitor firewall status and timestamps
+    - Update firewall software regularly
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Policy Compilation" icon="file-code" href="/guides/policy-compilation">
+    Create and compile firewall policies
+  </Card>
+  <Card title="VPN Configuration" icon="network-wired" href="/guides/vpn-configuration">
+    Configure VPN services
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/firewalls">
+    Complete firewall API documentation
+  </Card>
+  <Card title="Backup Management" icon="database" href="/guides/backups">
+    Backup and restore firewalls
+  </Card>
+</CardGroup>

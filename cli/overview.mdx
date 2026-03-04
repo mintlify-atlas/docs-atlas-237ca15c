@@ -1,0 +1,140 @@
+---
+title: CLI Overview
+description: Command-line interface for FWCloud API administration and management
+---
+
+## Overview
+
+The FWCloud CLI (`fwcli`) is a command-line tool for managing FWCloud API operations including database migrations, backups, key generation, and system administration.
+
+## Installation
+
+The CLI is included with FWCloud API and is located in the project root directory.
+
+### Prerequisites
+
+Before using the CLI, ensure you have:
+
+1. Node.js installed
+2. Installed dependencies:
+   ```bash
+   npm install
+   ```
+3. Built the project:
+   ```bash
+   npm run build
+   ```
+
+### Wrapper Script
+
+The `fwcli` wrapper script is a Node.js executable that:
+- Validates the project structure
+- Checks for `node_modules` and compiled code
+- Forks the compiled CLI (`dist/src/cli/cli.js`)
+- Passes all arguments to the CLI
+
+Location: `fwcli` in the project root
+
+## Usage
+
+### Basic Syntax
+
+```bash
+./fwcli <command> [options]
+```
+
+### Alternative Usage
+
+You can also run the CLI using npm scripts:
+
+```bash
+npm run fwcloud <command> [options]
+```
+
+Or directly with Node.js (requires build):
+
+```bash
+node dist/src/cli/cli.js <command> [options]
+```
+
+## Available Commands
+
+The CLI provides the following command groups:
+
+### Migration Commands
+- `migration:create` - Create a new database migration
+- `migration:run` - Execute pending migrations
+- `migration:rollback` - Rollback migrations
+- `migration:reset` - Reset all migrations
+- `migration:data` - Import default data
+
+### Backup Commands
+- `backup:create` - Create a new backup
+- `backup:restore` - Restore from an existing backup
+
+### Key Management
+- `keys:generate` - Generate application secret keys
+
+### Utilities
+- `route:list` - Display all registered API routes
+- `standard:services:add` - Add standard network services
+
+## Global Options
+
+All commands support the following global options:
+
+- `-h, --help` - Display help information
+- `-v, --version` - Show version number
+
+## Getting Help
+
+To view help for any command:
+
+```bash
+./fwcli <command> --help
+```
+
+To view all available commands:
+
+```bash
+./fwcli --help
+```
+
+## Error Handling
+
+The CLI provides detailed error messages:
+
+- Red background errors indicate critical failures
+- Validation errors display missing requirements
+- Exit codes: `0` for success, `1` for errors
+
+### Common Errors
+
+**"node_modules not found"**
+```bash
+npm install
+```
+
+**"Compiled cli not found"**
+```bash
+npm run build
+```
+
+**"fwcli not found"**
+Ensure you're running the command from the project root directory.
+
+## Environment
+
+The CLI reads configuration from:
+- `.env` file in the project root
+- Application configuration in `src/config/`
+- Database configuration for migrations
+
+## Examples
+
+See individual command pages for detailed examples:
+
+- [Database Migrations](/cli/migration)
+- [Backup Management](/cli/backup)
+- [Key Generation](/cli/keys)
+- [Route Listing](/cli/routes)

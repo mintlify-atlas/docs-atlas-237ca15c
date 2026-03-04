@@ -1,0 +1,290 @@
+---
+title: Check for Updates
+description: Check if FWCloud API updates are available
+---
+
+## Check for Updates
+
+`GET /updates`
+
+Checks if updates are available for FWCloud API and its components.
+
+<Info>
+  Only admin users can check for and install updates.
+</Info>
+
+### Response
+
+<ResponseField name="current_version" type="string">
+  Currently installed FWCloud API version
+</ResponseField>
+
+<ResponseField name="latest_version" type="string">
+  Latest available version
+</ResponseField>
+
+<ResponseField name="update_available" type="boolean">
+  Whether an update is available
+</ResponseField>
+
+<ResponseField name="release_notes" type="string">
+  Release notes for the latest version
+</ResponseField>
+
+<ResponseField name="breaking_changes" type="boolean">
+  Whether the update contains breaking changes
+</ResponseField>
+
+<ResponseField name="components" type="object">
+  Update status for individual components
+</ResponseField>
+
+```json
+{
+  "current_version": "2.3.1",
+  "latest_version": "2.4.0",
+  "update_available": true,
+  "release_notes": "## What's New\n\n- Added support for VyOS firewall compiler\n- Improved dangerous rule detection\n- Enhanced WebSocket room management\n- Updated dependencies",
+  "breaking_changes": false,
+  "components": {
+    "api": {
+      "current": "2.3.1",
+      "latest": "2.4.0",
+      "update_available": true
+    },
+    "ui": {
+      "current": "2.3.0",
+      "latest": "2.3.1",
+      "update_available": true
+    },
+    "websrv": {
+      "current": "1.2.0",
+      "latest": "1.2.0",
+      "update_available": false
+    }
+  }
+}
+```
+
+## Check Specific Component
+
+You can check for updates to specific components:
+
+### API Updates
+
+`GET /updates?component=api`
+
+Returns update information only for the FWCloud API.
+
+### UI Updates
+
+`GET /updates?component=ui`
+
+Returns update information for the FWCloud UI.
+
+### Web Server Updates
+
+`GET /updates?component=websrv`
+
+Returns update information for the FWCloud web server.
+
+## Package Manager Updates
+
+For systems using package managers (.deb, .rpm):
+
+`GET /updates/type/pkg`
+
+Returns package-specific update information including repository URLs and installation commands.
+
+### Response
+
+```json
+{
+  "update_method": "package",
+  "package_type": "deb",
+  "current_version": "2.3.1",
+  "latest_version": "2.4.0",
+  "repository": "https://repo.fwcloud.net/apt",
+  "install_command": "sudo apt update && sudo apt install fwcloud-api"
+}
+```
+
+## Example Requests
+
+```bash cURL
+# Check for all updates
+curl https://api.fwcloud.local/updates \
+  -H "Cookie: session=admin-session-cookie"
+
+# Check API updates only
+curl https://api.fwcloud.local/updates?component=api \
+  -H "Cookie: session=admin-session-cookie"
+
+# Package manager update info
+curl https://api.fwcloud.local/updates/type/pkg \
+  -H "Cookie: session=admin-session-cookie"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.fwcloud.local/updates', {
+  headers: { Cookie: adminSessionCookie }
+});
+
+const updates = await response.json();
+
+if (updates.update_available) {
+  console.log(`Update available: ${updates.latest_version}`);
+  console.log('Release notes:', updates.release_notes);
+  
+  if (updates.breaking_changes) {
+    console.warn('WARNING: This update contains breaking changes');
+  }
+}
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.fwcloud.local/updates',
+    cookies={'session': admin_session_cookie}
+)
+
+updates = response.json()
+
+if updates['update_available']:
+    print(f"Update available: {updates['latest_version']}")
+    print(f"Current: {updates['current_version']}")
+    
+    if updates['breaking_changes']:
+        print("WARNING: Breaking changes in this update")
+```
+
+## Update Notifications
+
+<CardGroup cols={2}>
+  <Card title="Major Updates" icon="exclamation-triangle" color="#ef4444">
+    Major version updates (2.x → 3.x) may contain breaking changes. Review release notes carefully.
+  </Card>
+  
+  <Card title="Minor Updates" icon="info-circle" color="#3b82f6">
+    Minor updates (2.3 → 2.4) add features without breaking changes. Safe to install.
+  </Card>
+  
+  <Card title="Patch Updates" icon="check-circle" color="#10b981">
+    Patch updates (2.3.1 → 2.3.2) fix bugs. Recommended to install promptly.
+  </Card>
+  
+  <Card title="Security Updates" icon="shield" color="#f59e0b">
+    Security updates are marked in release notes. Install as soon as possible.
+  </Card>
+</CardGroup>
+
+## Version Numbering
+
+FWCloud API follows [Semantic Versioning](https://semver.org/):
+
+```
+MAJOR.MINOR.PATCH
+  2  . 3  . 1
+```
+
+- **MAJOR**: Breaking changes, significant new features
+- **MINOR**: New features, backward compatible
+- **PATCH**: Bug fixes, backward compatible
+
+## Automated Update Checks
+
+Implement periodic update checks:
+
+```javascript
+// Check for updates daily
+setInterval(async () => {
+  const response = await fetch('https://api.fwcloud.local/updates');
+  const updates = await response.json();
+  
+  if (updates.update_available) {
+    // Notify administrators
+    notifyAdmins({
+      title: 'FWCloud Update Available',
+      message: `Version ${updates.latest_version} is now available`,
+      severity: updates.breaking_changes ? 'warning' : 'info'
+    });
+  }
+}, 24 * 60 * 60 * 1000); // 24 hours
+```
+
+## Pre-Update Checklist
+
+Before installing updates:
+
+<Steps>
+  <Step title="Review Release Notes">
+    Read the release notes to understand what's changing:
+    - New features
+    - Bug fixes
+    - Breaking changes
+    - Migration requirements
+  </Step>
+  
+  <Step title="Check Breaking Changes">
+    If `breaking_changes: true`, review the upgrade guide for migration steps.
+  </Step>
+  
+  <Step title="Create Backup">
+    Always create a database backup before updating:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.local/backups \
+      -d '{"comment": "Pre-update backup v2.3.1 -> v2.4.0"}'
+    ```
+  </Step>
+  
+  <Step title="Test in Staging">
+    If possible, test the update in a staging environment first.
+  </Step>
+  
+  <Step title="Schedule Maintenance Window">
+    Plan the update during a maintenance window when user impact is minimal.
+  </Step>
+</Steps>
+
+## Error Responses
+
+<Accordion title="403 Forbidden">
+  Only admin users can check for updates.
+  
+  ```json
+  {
+    "message": "Admin access required"
+  }
+  ```
+</Accordion>
+
+<Accordion title="503 Service Unavailable">
+  Unable to reach update server.
+  
+  ```json
+  {
+    "message": "Update server unavailable",
+    "details": "Check internet connectivity"
+  }
+  ```
+</Accordion>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Install Updates" icon="download" href="/api-reference/updates/install">
+    Install available updates
+  </Card>
+  <Card title="Version Info" icon="info-circle" href="/api-reference/overview">
+    GET /version - Get current version
+  </Card>
+  <Card title="Changelog" icon="list" href="/advanced/changelog">
+    View complete changelog
+  </Card>
+  <Card title="Backup Before Update" icon="floppy-disk" href="/api-reference/backups/create">
+    Create backup before updating
+  </Card>
+</CardGroup>

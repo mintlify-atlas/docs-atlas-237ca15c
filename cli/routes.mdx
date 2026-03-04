@@ -1,0 +1,360 @@
+---
+title: Route List Command
+description: Display all registered API routes and endpoints
+---
+
+## Overview
+
+The `route:list` command displays all registered HTTP routes in the FWCloud API, including their methods, paths, handlers, and middleware gates. This is useful for debugging, documentation, and understanding the API structure.
+
+## Command
+
+### route:list
+
+List all registered API routes.
+
+**Syntax:**
+```bash
+./fwcli route:list
+```
+
+**Options:**
+This command has no options.
+
+**Description:**
+Displays a comprehensive table of all registered routes with:
+- HTTP method (GET, POST, PUT, DELETE, etc.)
+- Path pattern with parameters
+- Handler (Controller@method or callback)
+- Route name
+- Applied gates (middleware/guards)
+
+## Usage
+
+### Basic Usage
+
+```bash
+./fwcli route:list
+```
+
+### Example Output
+
+```
+┌─────────┬────────────┬──────────────────────────┬─────────────────────────────┬──────────────────┬──────────────────────────────┐
+│ (index) │ httpMethod │       pathParams         │          handler            │      name        │           gates              │
+├─────────┼────────────┼──────────────────────────┼─────────────────────────────┼──────────────────┼──────────────────────────────┤
+│    0    │   'GET'    │    '/api/firewalls'      │ 'FirewallController@index'  │ 'firewalls.index'│ ['AuthGate', 'AdminGate']    │
+│    1    │   'POST'   │    '/api/firewalls'      │ 'FirewallController@store'  │ 'firewalls.store'│ ['AuthGate', 'AdminGate']    │
+│    2    │   'GET'    │ '/api/firewalls/:id'     │ 'FirewallController@show'   │ 'firewalls.show' │ ['AuthGate']                 │
+│    3    │   'PUT'    │ '/api/firewalls/:id'     │ 'FirewallController@update' │ 'firewalls.update'│ ['AuthGate', 'AdminGate']   │
+│    4    │  'DELETE'  │ '/api/firewalls/:id'     │ 'FirewallController@destroy'│ 'firewalls.destroy'│ ['AuthGate', 'AdminGate']  │
+│    5    │   'GET'    │    '/api/health'         │ 'HealthController@check'    │ 'health.check'   │ []                           │
+└─────────┴────────────┴──────────────────────────┴─────────────────────────────┴──────────────────┴──────────────────────────────┘
+```
+
+## Output Format
+
+### Table Columns
+
+| Column | Description | Example |
+|--------|-------------|----------|
+| **httpMethod** | HTTP method for the route | `'GET'`, `'POST'`, `'PUT'`, `'DELETE'`, `'PATCH'` |
+| **pathParams** | URL path pattern, including parameters | `'/api/firewalls/:id'` |
+| **handler** | Controller and method, or 'callback' | `'FirewallController@index'` |
+| **name** | Named route identifier | `'firewalls.index'` |
+| **gates** | Array of middleware/guard classes | `['AuthGate', 'AdminGate']` |
+
+### Handler Types
+
+**Controller Handler:**
+```
+FirewallController@index
+```
+Format: `ControllerName@methodName`
+
+**Callback Handler:**
+```
+callback
+```
+Indicates an inline function handler rather than a controller method.
+
+### Gates (Middleware)
+
+Gates are authorization and validation middleware:
+
+- **AuthGate** - Requires authentication
+- **AdminGate** - Requires admin privileges  
+- **UserGate** - Requires user role
+- **ValidationGate** - Validates request data
+- Empty array `[]` - No middleware required (public route)
+
+## Use Cases
+
+### 1. API Documentation
+
+Generate route documentation:
+
+```bash
+./fwcli route:list > api-routes.txt
+```
+
+### 2. Debugging Routes
+
+Verify routes are registered correctly:
+
+```bash
+# Check if specific route exists
+./fwcli route:list | grep "/api/firewalls"
+```
+
+### 3. Security Audit
+
+Identify unprotected routes:
+
+```bash
+# Find routes without authentication
+./fwcli route:list | grep "\[\]"
+```
+
+### 4. Development Reference
+
+Quick reference for available endpoints:
+
+```bash
+# List all GET routes
+./fwcli route:list | grep "GET"
+
+# List all POST routes  
+./fwcli route:list | grep "POST"
+```
+
+### 5. Route Naming Verification
+
+Check route names for consistency:
+
+```bash
+./fwcli route:list | grep "name"
+```
+
+## Filtering Output
+
+Since the output is a table, you can use standard Unix tools:
+
+### Filter by HTTP Method
+
+```bash
+# Only GET routes
+./fwcli route:list | grep "'GET'"
+
+# Only POST routes
+./fwcli route:list | grep "'POST'"
+```
+
+### Filter by Path
+
+```bash
+# Routes under /api/firewalls
+./fwcli route:list | grep "/api/firewalls"
+
+# Routes with parameters
+./fwcli route:list | grep ":"
+```
+
+### Filter by Controller
+
+```bash
+# All FirewallController routes
+./fwcli route:list | grep "FirewallController"
+```
+
+### Filter by Gates
+
+```bash
+# Routes requiring AuthGate
+./fwcli route:list | grep "AuthGate"
+
+# Routes requiring AdminGate
+./fwcli route:list | grep "AdminGate"
+
+# Public routes (no gates)
+./fwcli route:list | grep "\[\]"
+```
+
+## Implementation Details
+
+### Router Service
+
+The command queries the RouterService:
+
+```typescript
+const routerService: RouterService = await this._app.getService<RouterService>(
+  RouterService.name,
+);
+const routes: Route[] = routerService.getRoutes();
+```
+
+### Route Interface
+
+Each route object contains:
+
+```typescript
+interface RouteRow {
+  httpMethod: HttpMethod;      // GET, POST, PUT, DELETE, etc.
+  pathParams: PathParams;      // URL pattern
+  handler: string;             // Controller@method or 'callback'
+  name: string;                // Route name
+  gates: Array<string>;        // Middleware classes
+}
+```
+
+### Output Method
+
+Routes are displayed using Node.js `console.table()`:
+
+```typescript
+console.table(rows);
+```
+
+## Common HTTP Methods
+
+Routes may use these HTTP methods:
+
+- **GET** - Retrieve resources
+- **POST** - Create new resources
+- **PUT** - Update entire resources
+- **PATCH** - Partially update resources
+- **DELETE** - Remove resources
+- **OPTIONS** - Get allowed methods
+- **HEAD** - Get headers only
+
+## Path Parameters
+
+Routes can include path parameters:
+
+```
+/api/firewalls/:id              # Single parameter
+/api/firewalls/:fwId/rules/:ruleId  # Multiple parameters
+/api/users/:id?                 # Optional parameter
+```
+
+## Route Naming Convention
+
+FWCloud follows RESTful naming conventions:
+
+```
+resource.index    # GET /resource
+resource.store    # POST /resource
+resource.show     # GET /resource/:id
+resource.update   # PUT /resource/:id
+resource.destroy  # DELETE /resource/:id
+```
+
+## Integration with Express
+
+The RouterService manages Express routes:
+
+```typescript
+// Service location
+src/fonaments/http/router/router.service.ts
+
+// Route model
+src/fonaments/http/router/route.ts
+
+// Gate (middleware)
+src/fonaments/http/router/gate.ts
+```
+
+## Troubleshooting
+
+### No Routes Displayed
+
+**Possible causes:**
+- Application not properly initialized
+- RouterService not loaded
+- No routes registered
+
+**Solution:**
+```bash
+# Ensure project is built
+npm run build
+
+# Try again
+./fwcli route:list
+```
+
+### Table Format Issues
+
+**Problem:** Table doesn't display correctly
+
+**Solution:**
+Ensure terminal width is sufficient:
+```bash
+# Increase terminal width or redirect to file
+./fwcli route:list > routes.txt
+cat routes.txt
+```
+
+### Error: "RouterService not found"
+
+**Solution:**
+Check that the application bootstraps correctly:
+
+```bash
+# Verify build
+npm run build
+
+# Check for errors in application startup
+node dist/src/bin/fwcloud --help
+```
+
+## Comparison with Other Tools
+
+### vs. Manual Code Review
+
+**route:list advantages:**
+- Instant overview of all routes
+- No need to read through route files
+- Includes computed information (gates, handlers)
+
+### vs. API Documentation Tools
+
+**route:list advantages:**
+- Always up-to-date with code
+- No separate documentation to maintain
+- Shows internal implementation details
+
+**route:list limitations:**
+- No request/response schemas
+- No parameter descriptions
+- No usage examples
+
+## Best Practices
+
+1. **Regular Audits**
+   ```bash
+   # Weekly security audit
+   ./fwcli route:list > routes-$(date +%Y%m%d).txt
+   ```
+
+2. **Pre-Deployment Check**
+   ```bash
+   # Verify routes before deploying
+   ./fwcli route:list | grep "new-feature"
+   ```
+
+3. **Documentation Updates**
+   ```bash
+   # Update API docs when routes change
+   ./fwcli route:list > docs/api-routes.txt
+   ```
+
+4. **Security Review**
+   ```bash
+   # Find public routes
+   ./fwcli route:list | grep "\[\]" > public-routes.txt
+   ```
+
+5. **Development Reference**
+   - Keep output handy during development
+   - Verify new routes are registered
+   - Check middleware is applied correctly

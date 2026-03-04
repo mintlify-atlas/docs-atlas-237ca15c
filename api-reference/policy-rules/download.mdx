@@ -1,0 +1,314 @@
+---
+title: 'Download Policy Script'
+openapi: 'POST /fwclouds/{fwcloud}/firewalls/{firewall}/policyRules/download'
+---
+
+## Overview
+
+Downloads the compiled firewall policy script as an attachment file. This endpoint retrieves the same script content as the [Read Policy Script](/api-reference/policy-rules/read) endpoint but returns it with appropriate headers for file download.
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Backup" icon="floppy-disk">
+    Download policy scripts for backup and version control
+  </Card>
+  <Card title="Manual Deployment" icon="terminal">
+    Download scripts for manual installation on firewalls
+  </Card>
+  <Card title="Audit" icon="magnifying-glass">
+    Review and audit firewall configurations offline
+  </Card>
+  <Card title="Testing" icon="flask">
+    Test scripts in development environments before applying
+  </Card>
+</CardGroup>
+
+## Compiler-Specific Output
+
+The downloaded file format and name depend on the firewall's configured compiler:
+
+### iptables Compiler
+
+- **File name**: `firewall.sh` (default)
+- **Format**: Bash script with iptables/ip6tables commands
+- **Executable**: Yes, can be run directly with `bash firewall.sh`
+
+```bash Example Output
+#!/bin/bash
+# iptables firewall script
+
+# Flush existing rules
+$IPTABLES -F
+$IPTABLES -X
+
+# Set default policies
+$IPTABLES -P INPUT DROP
+$IPTABLES -P FORWARD DROP
+$IPTABLES -P OUTPUT ACCEPT
+
+# Rule 1 (ID: 123)
+$IPTABLES -A INPUT -i lo -j ACCEPT
+
+# Rule 2 (ID: 124)
+$IPTABLES -A INPUT -p tcp --dport 22 -j ACCEPT
+```
+
+### nftables Compiler
+
+- **File name**: `firewall.sh` (default)
+- **Format**: Bash script with nft commands
+- **Executable**: Yes, requires nftables to be installed
+
+```bash Example Output
+#!/bin/bash
+# nftables firewall script
+
+# Create tables and chains
+$NFT add table ip filter
+$NFT add chain ip filter INPUT { type filter hook input priority 0\; policy drop\; }
+
+# Rule 1 (ID: 123)
+$NFT add rule ip filter INPUT iifname "lo" counter accept
+
+# Rule 2 (ID: 124)
+$NFT add rule ip filter INPUT tcp dport 22 counter accept
+```
+
+### VyOS Compiler
+
+- **File name**: `firewall.sh` (default)
+- **Format**: VyOS configuration commands
+- **Executable**: Yes, can be applied via VyOS CLI or API
+
+```bash Example Output
+#!/bin/vbash
+# VyOS firewall configuration
+
+set firewall name INPUT rule 123 action accept
+set firewall name INPUT rule 123 description "Allow loopback"
+set firewall name INPUT rule 123 inbound-interface lo
+
+set firewall name INPUT rule 124 action accept
+set firewall name INPUT rule 124 description "Allow SSH"
+set firewall name INPUT rule 124 protocol tcp
+set firewall name INPUT rule 124 destination port 22
+```
+
+## Response Headers
+
+The response includes headers that trigger browser download:
+
+```http
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="firewall.sh"
+Content-Length: [size in bytes]
+```
+
+## Policy Compilation Process
+
+Before downloading, ensure the policy has been compiled:
+
+<Steps>
+  <Step title="Configure Policy Rules">
+    Create and configure policy rules through the FWCloud interface or API
+  </Step>
+  
+  <Step title="Compile Policy">
+    Trigger policy compilation to generate the script file
+  </Step>
+  
+  <Step title="Download Script">
+    Use this endpoint to download the compiled script
+  </Step>
+  
+  <Step title="Review and Deploy">
+    Review the script and deploy to your firewall
+  </Step>
+</Steps>
+
+## Compilation Parameters
+
+The script generation considers several firewall options:
+
+<ParamField path="compiler" type="string">
+  The firewall compiler type: `iptables`, `nftables`, or `vyos`
+</ParamField>
+
+<ParamField path="stateful" type="boolean">
+  Enable connection tracking for stateful firewall operation
+</ParamField>
+
+<ParamField path="ipv4_forwarding" type="boolean">
+  Enable IPv4 packet forwarding between interfaces
+</ParamField>
+
+<ParamField path="ipv6_forwarding" type="boolean">
+  Enable IPv6 packet forwarding between interfaces
+</ParamField>
+
+<ParamField path="dangerous_warning" type="boolean">
+  Enable detection of potentially dangerous rules (warning level)
+</ParamField>
+
+<ParamField path="dangerous_critical" type="boolean">
+  Enable detection of critical dangerous rules (lockout prevention)
+</ParamField>
+
+<Info>
+  These parameters are configured at the firewall level and cannot be changed through this endpoint. They affect how the policy is compiled.
+</Info>
+
+## Dangerous Rules Detection
+
+The compilation process automatically detects dangerous rules:
+
+<AccordionGroup>
+  <Accordion title="Warning Level Rules">
+    Rules that match dangerous patterns but specify interfaces:
+    
+    - May affect specific network segments
+    - Could cause connectivity issues on certain interfaces
+    - Should be reviewed but may be intentional
+    
+    **Example**: Blocking all traffic on a specific interface
+  </Accordion>
+  
+  <Accordion title="Critical Level Rules">
+    Rules that could completely block access to the firewall:
+    
+    - Match dangerous patterns without interface restrictions
+    - Could lock out administrative access
+    - Require careful review before deployment
+    
+    **Example**: Dropping all INPUT traffic without exceptions
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Always review the downloaded script before applying it to a production firewall. Pay special attention to rules marked as dangerous during compilation.
+</Warning>
+
+## Error Responses
+
+<ResponseField name="404" type="error">
+  **Script not found**: The policy script has not been compiled yet. Compile the policy rules first using the compile endpoint.
+</ResponseField>
+
+<ResponseField name="401" type="error">
+  **Unauthorized**: Invalid or missing authentication credentials.
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  **Forbidden**: Insufficient permissions to download the policy script for this firewall.
+</ResponseField>
+
+## Usage Example
+
+<CodeGroup>
+```bash cURL
+curl -X POST \
+  'https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/download' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -O -J
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/download',
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const blob = await response.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'firewall.sh';
+a.click();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/download',
+    headers={'Authorization': 'Bearer YOUR_TOKEN'},
+    stream=True
+)
+
+with open('firewall.sh', 'wb') as f:
+    for chunk in response.iter_content(chunk_size=8192):
+        f.write(chunk)
+```
+
+```go Go
+package main
+
+import (
+    "io"
+    "net/http"
+    "os"
+)
+
+func main() {
+    client := &http.Client{}
+    req, _ := http.NewRequest("POST", 
+        "https://api.fwcloud.net/fwclouds/1/firewalls/5/policyRules/download", 
+        nil)
+    req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+    
+    resp, _ := client.Do(req)
+    defer resp.Body.Close()
+    
+    out, _ := os.Create("firewall.sh")
+    defer out.Close()
+    
+    io.Copy(out, resp.Body)
+}
+```
+</CodeGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Version Control" icon="code-branch">
+    Store downloaded scripts in version control to track policy changes over time
+  </Card>
+  <Card title="Testing" icon="vial">
+    Test scripts in a non-production environment before applying to production firewalls
+  </Card>
+  <Card title="Backup" icon="clock-rotate-left">
+    Keep backups of working policy scripts before making changes
+  </Card>
+  <Card title="Review" icon="eye">
+    Always review the script content, especially if dangerous rules were detected
+  </Card>
+</CardGroup>
+
+## Workflow Integration
+
+Typical workflow for downloading and deploying policy scripts:
+
+1. **Configure** policy rules through FWCloud UI or API
+2. **Compile** the policy to generate the script and detect dangerous rules
+3. **Download** the script using this endpoint
+4. **Review** the script content for correctness and safety
+5. **Test** in a development environment if possible
+6. **Deploy** to the target firewall using the install endpoint or manual method
+7. **Verify** firewall operation after deployment
+
+<Tip>
+  For automated deployments, combine this endpoint with the compile and install endpoints to create a complete CI/CD pipeline for firewall configuration.
+</Tip>
+
+## Related Endpoints
+
+- [Read Policy Script](/api-reference/policy-rules/read) - Read the script content without downloading
+- Compile Policy Rules - Compile policy rules and detect dangerous rules
+- Install Policy - Install the compiled policy script directly to the firewall
+- Get Firewall - Retrieve firewall configuration including compiler type

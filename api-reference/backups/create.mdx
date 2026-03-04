@@ -1,0 +1,183 @@
+---
+title: Create Backup
+description: Create a backup of the FWCloud API database
+---
+
+## Create Backup
+
+`POST /backups`
+
+Creates a complete backup of the FWCloud API database. The backup includes all FWClouds, firewalls, policies, VPN configurations, certificates, and system settings.
+
+### Request Body
+
+<ParamField body="comment" type="string">
+  Optional comment to describe the backup purpose
+</ParamField>
+
+<ParamField body="manual" type="boolean" default="true">
+  Whether this is a manual backup (affects retention policies)
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.local/backups \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "comment": "Pre-upgrade backup before 2.4.0 update",
+    "manual": true
+  }'
+```
+
+### Response
+
+<ResponseField name="id" type="number">
+  Unique backup identifier
+</ResponseField>
+
+<ResponseField name="filename" type="string">
+  Backup filename (format: `backup-YYYYMMDD-HHMMSS.sql.gz`)
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  Full filesystem path to the backup file
+</ResponseField>
+
+<ResponseField name="size" type="number">
+  Backup file size in bytes
+</ResponseField>
+
+<ResponseField name="comment" type="string">
+  User-provided comment
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Backup creation timestamp
+</ResponseField>
+
+<ResponseField name="created_by" type="number">
+  User ID who created the backup
+</ResponseField>
+
+```json
+{
+  "id": 42,
+  "filename": "backup-20240304-153045.sql.gz",
+  "path": "/opt/fwcloud-api/backups/backup-20240304-153045.sql.gz",
+  "size": 2457600,
+  "comment": "Pre-upgrade backup before 2.4.0 update",
+  "created_at": "2024-03-04T15:30:45.000Z",
+  "created_by": 1
+}
+```
+
+## Backup Contents
+
+Each backup includes:
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database">
+    All tables, indexes, and constraints
+  </Card>
+  <Card title="Configuration Data" icon="gear">
+    FWClouds, firewalls, policies, and rules
+  </Card>
+  <Card title="VPN Configurations" icon="network-wired">
+    OpenVPN, WireGuard, and IPsec settings
+  </Card>
+  <Card title="User Data" icon="users">
+    Users, sessions, and permissions
+  </Card>
+</CardGroup>
+
+<Note>
+  Backups are compressed with gzip and typically reduce to 20-30% of the original database size.
+</Note>
+
+## Backup Storage
+
+Backups are stored in the configured backup directory (default: `/opt/fwcloud-api/backups/`):
+
+```
+backups/
+  backup-20240304-153045.sql.gz
+  backup-20240303-020000.sql.gz
+  backup-20240302-020000.sql.gz
+```
+
+<Warning>
+  Ensure sufficient disk space is available. A typical FWCloud database backup ranges from 5-50 MB depending on configuration size.
+</Warning>
+
+## Automated Backups
+
+Backups can be scheduled using the backup configuration endpoint. See [Backup Configuration](/api-reference/backups/config) for details.
+
+## Best Practices
+
+<Steps>
+  <Step title="Pre-deployment Backups">
+    Always create a backup before:
+    - Upgrading FWCloud API
+    - Making bulk policy changes
+    - Modifying database migrations
+  </Step>
+  
+  <Step title="Regular Schedule">
+    Set up automated daily backups with retention policies to maintain backup history without consuming excessive storage.
+  </Step>
+  
+  <Step title="Off-site Storage">
+    Copy critical backups to a separate storage location:
+    
+    ```bash
+    rsync -avz /opt/fwcloud-api/backups/ backup-server:/backups/fwcloud/
+    ```
+  </Step>
+  
+  <Step title="Test Restores">
+    Periodically test backup restoration to ensure backups are valid and complete.
+  </Step>
+</Steps>
+
+## Error Responses
+
+<Accordion title="503 Service Unavailable">
+  Backup service is currently processing another backup.
+  
+  ```json
+  {
+    "message": "Backup already in progress"
+  }
+  ```
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+  Backup creation failed (insufficient disk space, database connection error, etc.).
+  
+  ```json
+  {
+    "message": "Failed to create backup",
+    "error": "ENOSPC: no space left on device"
+  }
+  ```
+</Accordion>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="List Backups" icon="list" href="/api-reference/overview">
+    GET /backups - List all available backups
+  </Card>
+  <Card title="Restore Backup" icon="clock-rotate-left" href="/api-reference/backups/restore">
+    Restore from a backup
+  </Card>
+  <Card title="Backup Configuration" icon="gear" href="/api-reference/backups/config">
+    Configure automated backups
+  </Card>
+  <Card title="CLI Backup" icon="terminal" href="/cli/backup">
+    Create backups from the command line
+  </Card>
+</CardGroup>

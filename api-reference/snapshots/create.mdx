@@ -1,0 +1,280 @@
+---
+title: Create Snapshot
+description: Create a snapshot of a FWCloud configuration
+---
+
+## Create Snapshot
+
+`POST /fwclouds/:fwcloud/snapshots`
+
+Creates a snapshot of the current FWCloud configuration state. Unlike backups which save the entire database, snapshots capture the configuration of a specific FWCloud including its firewalls, policies, and VPN configurations.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID to snapshot
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Snapshot name (must be unique within the FWCloud)
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional description of the snapshot
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.local/fwclouds/1/snapshots \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "name": "pre-vpn-migration",
+    "comment": "Before migrating OpenVPN to WireGuard"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.fwcloud.local/fwclouds/1/snapshots', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Cookie': sessionCookie
+  },
+  body: JSON.stringify({
+    name: 'pre-vpn-migration',
+    comment: 'Before migrating OpenVPN to WireGuard'
+  })
+});
+
+const snapshot = await response.json();
+console.log('Snapshot created:', snapshot);
+```
+
+### Response
+
+<ResponseField name="id" type="number">
+  Unique snapshot identifier
+</ResponseField>
+
+<ResponseField name="fwCloudId" type="number">
+  Parent FWCloud ID
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Snapshot name
+</ResponseField>
+
+<ResponseField name="comment" type="string">
+  Snapshot description
+</ResponseField>
+
+<ResponseField name="size" type="number">
+  Snapshot size in bytes
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Snapshot creation timestamp
+</ResponseField>
+
+<ResponseField name="created_by" type="number">
+  User ID who created the snapshot
+</ResponseField>
+
+```json
+{
+  "id": 15,
+  "fwCloudId": 1,
+  "name": "pre-vpn-migration",
+  "comment": "Before migrating OpenVPN to WireGuard",
+  "size": 524288,
+  "created_at": "2024-03-04T15:45:00.000Z",
+  "created_by": 1
+}
+```
+
+## Snapshot Contents
+
+Each snapshot includes:
+
+<CardGroup cols={2}>
+  <Card title="Firewall Configurations" icon="shield">
+    All firewalls and their settings
+  </Card>
+  <Card title="Policy Rules" icon="list-check">
+    Complete policy rulesets with positions
+  </Card>
+  <Card title="VPN Configurations" icon="network-wired">
+    OpenVPN, WireGuard, and IPsec configs
+  </Card>
+  <Card title="IP Objects" icon="hashtag">
+    IP addresses, networks, and groups
+  </Card>
+  <Card title="Routing Rules" icon="route">
+    Routing tables, routes, and rules
+  </Card>
+  <Card title="System Services" icon="gear">
+    DHCP, Keepalived, HAProxy configurations
+  </Card>
+</CardGroup>
+
+<Info>
+  Snapshots do not include certificate private keys or user credentials for security reasons.
+</Info>
+
+## Snapshot Use Cases
+
+<Tabs>
+  <Tab title="Configuration Checkpoints">
+    Create snapshots before major changes:
+    
+    ```bash
+    # Before adding new firewall
+    curl -X POST .../snapshots -d '{
+      "name": "pre-firewall-add",
+      "comment": "Before adding DMZ firewall"
+    }'
+    ```
+  </Tab>
+  
+  <Tab title="Testing Changes">
+    Experiment with configurations knowing you can revert:
+    
+    ```bash
+    # Create snapshot, make changes, test
+    # If issues occur, restore snapshot
+    ```
+  </Tab>
+  
+  <Tab title="Compliance Auditing">
+    Maintain historical configuration records:
+    
+    ```bash
+    # Monthly compliance snapshot
+    curl -X POST .../snapshots -d '{
+      "name": "compliance-2024-03",
+      "comment": "Monthly audit snapshot"
+    }'
+    ```
+  </Tab>
+  
+  <Tab title="Migration Rollback">
+    Safety net for migrations:
+    
+    ```bash
+    # Before VPN migration
+    curl -X POST .../snapshots -d '{
+      "name": "pre-vpn-migration",
+      "comment": "Before OpenVPN to WireGuard migration"
+    }'
+    ```
+  </Tab>
+</Tabs>
+
+## Snapshot vs Backup
+
+| Feature | Snapshot | Backup |
+|---------|----------|--------|
+| **Scope** | Single FWCloud | Entire database |
+| **Size** | Small (KB-MB) | Large (MB-GB) |
+| **Speed** | Fast (seconds) | Slower (minutes) |
+| **Restore** | Non-destructive | Replaces database |
+| **Use Case** | Configuration checkpoints | Disaster recovery |
+
+<Tip>
+  Use **snapshots** for quick configuration rollbacks. Use **backups** for disaster recovery.
+</Tip>
+
+## Snapshot Storage
+
+Snapshots are stored in the database and filesystem:
+
+```
+fwcloud-data/
+  snapshots/
+    fwcloud-1/
+      snapshot-15.json     # Configuration data
+      snapshot-15.meta     # Metadata
+```
+
+## Error Responses
+
+<Accordion title="400 Bad Request">
+  Invalid snapshot name or duplicate name.
+  
+  ```json
+  {
+    "message": "Snapshot name already exists",
+    "name": "pre-vpn-migration"
+  }
+  ```
+</Accordion>
+
+<Accordion title="404 Not Found">
+  FWCloud does not exist.
+  
+  ```json
+  {
+    "message": "FWCloud not found",
+    "fwCloudId": 99
+  }
+  ```
+</Accordion>
+
+<Accordion title="403 Forbidden">
+  User does not have permission to create snapshots in this FWCloud.
+  
+  ```json
+  {
+    "message": "Access denied"
+  }
+  ```
+</Accordion>
+
+## Best Practices
+
+<Steps>
+  <Step title="Descriptive Names">
+    Use clear, descriptive snapshot names:
+    - ✅ `pre-dmz-firewall-add`
+    - ✅ `working-config-2024-03`
+    - ❌ `snapshot1`
+    - ❌ `test`
+  </Step>
+  
+  <Step title="Add Comments">
+    Always include a comment explaining:
+    - What changed
+    - Why the snapshot was created
+    - Any relevant ticket/issue numbers
+  </Step>
+  
+  <Step title="Clean Up Old Snapshots">
+    Regularly remove snapshots that are no longer needed to save storage.
+  </Step>
+  
+  <Step title="Snapshot Before Changes">
+    Create a snapshot before:
+    - Adding/removing firewalls
+    - Major policy changes
+    - VPN configuration changes
+    - System service updates
+  </Step>
+</Steps>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="List Snapshots" icon="list" href="/api-reference/overview">
+    GET /fwclouds/:fwcloud/snapshots
+  </Card>
+  <Card title="Restore Snapshot" icon="clock-rotate-left" href="/api-reference/snapshots/restore">
+    Restore from a snapshot
+  </Card>
+  <Card title="Delete Snapshot" icon="trash" href="/api-reference/overview">
+    DELETE /fwclouds/:fwcloud/snapshots/:snapshot
+  </Card>
+</CardGroup>

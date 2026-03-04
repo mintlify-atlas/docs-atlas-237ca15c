@@ -1,0 +1,536 @@
+---
+title: Contributing Guidelines
+description: How to contribute to FWCloud-API development
+---
+
+## Welcome
+
+Thank you for your interest in contributing to FWCloud-API! This guide will help you get started with development, testing, and submitting contributions.
+
+## Project Information
+
+- **License**: [GNU AGPL v3](http://www.gnu.org/licenses/agpl-3.0.en.html)
+- **Repository**: https://github.com/soltecsis/fwcloud-api
+- **Website**: https://fwcloud.net
+- **Version**: 2.3.1
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js**: Version 22 or later
+- **npm**: Latest version
+- **Git**: For version control
+- **MySQL/MariaDB**: For database
+- **Code Editor**: VS Code recommended
+
+### Development Environment Setup
+
+1. **Fork and Clone**
+
+```bash
+# Fork the repository on GitHub first
+git clone https://github.com/YOUR_USERNAME/fwcloud-api.git
+cd fwcloud-api
+
+# Add upstream remote
+git remote add upstream https://github.com/soltecsis/fwcloud-api.git
+```
+
+2. **Install Dependencies**
+
+```bash
+npm install
+```
+
+3. **Setup Database**
+
+```bash
+# Create database
+mysql -u root -p -e "CREATE DATABASE fwcloud_dev;"
+
+# Create user
+mysql -u root -p -e "CREATE USER 'fwcloud_dev'@'localhost' IDENTIFIED BY 'dev_password';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON fwcloud_dev.* TO 'fwcloud_dev'@'localhost';"
+```
+
+4. **Configure Environment**
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```bash
+NODE_ENV=dev
+TYPEORM_HOST=127.0.0.1
+TYPEORM_PORT=3306
+TYPEORM_DATABASE=fwcloud_dev
+TYPEORM_USERNAME=fwcloud_dev
+TYPEORM_PASSWORD=dev_password
+```
+
+5. **Initialize Database**
+
+```bash
+node fwcli keys:generate
+node fwcli migration:run
+node fwcli migration:data
+```
+
+6. **Build and Start**
+
+```bash
+# Build
+npm run build
+
+# Start in development mode
+npm run dev
+
+# Or watch mode (auto-rebuild on changes)
+npm run watch
+```
+
+## Development Workflow
+
+### Branch Strategy
+
+- **main**: Stable production branch
+- **devel**: Development branch (default for PRs)
+- **feature/***: Feature branches
+- **fix/***: Bug fix branches
+
+### Creating a Feature
+
+1. **Create a branch**
+
+```bash
+# Update devel branch
+git checkout devel
+git pull upstream devel
+
+# Create feature branch
+git checkout -b feature/your-feature-name
+```
+
+2. **Make changes**
+
+- Write code following the project's coding standards
+- Add tests for new functionality
+- Update documentation as needed
+
+3. **Commit changes**
+
+```bash
+# Stage changes
+git add .
+
+# Commit with descriptive message
+git commit -m "Add feature: description of what you added"
+```
+
+4. **Push and create PR**
+
+```bash
+# Push to your fork
+git push origin feature/your-feature-name
+```
+
+Then create a Pull Request on GitHub targeting the `devel` branch.
+
+## Code Standards
+
+### TypeScript
+
+FWCloud-API is written in TypeScript. Key points:
+
+- Use strict TypeScript mode
+- Define proper types for all functions and variables
+- Avoid `any` type when possible
+- Use interfaces for object shapes
+
+### Code Style
+
+The project uses **ESLint** and **Prettier** for code formatting:
+
+```bash
+# Check formatting
+npm run format:check
+
+# Fix formatting
+npm run format:fix
+
+# Check linting
+npm run lint:check
+
+# Fix linting issues
+npm run lint:fix
+```
+
+### Pre-commit Hooks
+
+The project uses **Husky** and **lint-staged** to automatically format code before commits:
+
+```json
+"lint-staged": {
+  "*.ts": [
+    "eslint --fix",
+    "prettier --write"
+  ]
+}
+```
+
+Files are automatically formatted when you commit.
+
+### ESLint Configuration
+
+The project uses:
+- `@typescript-eslint/eslint-plugin`
+- `@typescript-eslint/parser`
+- `eslint-config-prettier`
+- `eslint-plugin-prettier`
+
+### Prettier Configuration
+
+Files matching `"{src,app,lib,tests}/**/*.ts"` are automatically formatted.
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test file
+NODE_ENV=test node --no-warnings node_modules/mocha/bin/_mocha --timeout 99999 --exit --colors dist/tests/path/to/test.spec.js
+```
+
+### Test Structure
+
+Tests are located in `tests/` directory:
+
+```
+tests/
+├── Unit/           # Unit tests
+│   ├── models/
+│   ├── services/
+│   └── utils/
+└── e2e/            # End-to-end tests
+    ├── api/
+    └── middlewares/
+```
+
+### Writing Tests
+
+The project uses:
+- **Mocha**: Test framework
+- **Chai**: Assertion library
+- **Sinon**: Mocking library
+- **Supertest**: HTTP testing
+
+Example test:
+
+```typescript
+import { expect } from 'chai';
+import { describe, it } from 'mocha';
+
+describe('FeatureName', () => {
+  it('should do something', () => {
+    const result = someFunction();
+    expect(result).to.equal(expectedValue);
+  });
+
+  it('should handle errors', () => {
+    expect(() => someFunction()).to.throw();
+  });
+});
+```
+
+### Test Coverage
+
+Aim for comprehensive test coverage:
+- Unit tests for services and utilities
+- Integration tests for database operations
+- E2E tests for API endpoints
+
+Recent versions have added extensive test coverage, including "hundreds of new software tests" for IPTables compiler and routing features.
+
+## Database Migrations
+
+### Creating Migrations
+
+When adding new database features:
+
+```bash
+node fwcli migration:create --name=YourMigrationName
+```
+
+This creates a new migration file in `src/database/migrations/1.0.0/`.
+
+### Migration Structure
+
+```typescript
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class YourMigrationName1234567890123 implements MigrationInterface {
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Add schema changes
+    await queryRunner.query(`
+      ALTER TABLE table_name ADD COLUMN new_column VARCHAR(255);
+    `);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Revert schema changes
+    await queryRunner.query(`
+      ALTER TABLE table_name DROP COLUMN new_column;
+    `);
+  }
+}
+```
+
+### Testing Migrations
+
+```bash
+# Run migration
+node fwcli migration:run
+
+# Test rollback
+node fwcli migration:rollback
+
+# Run again
+node fwcli migration:run
+```
+
+## Documentation
+
+### Code Documentation
+
+- Add JSDoc comments to all public functions
+- Document complex logic with inline comments
+- Keep README.md and CHANGELOG.md updated
+
+### API Documentation
+
+- Document all API endpoints
+- Include request/response examples
+- Note any breaking changes
+
+## Pull Request Process
+
+### Before Submitting
+
+1. **Update your branch**
+
+```bash
+git fetch upstream
+git rebase upstream/devel
+```
+
+2. **Run tests**
+
+```bash
+npm test
+```
+
+3. **Check code quality**
+
+```bash
+npm run lint:check
+npm run format:check
+```
+
+4. **Build successfully**
+
+```bash
+npm run build
+```
+
+### PR Guidelines
+
+- **Target**: Submit PRs to the `devel` branch
+- **Title**: Clear and descriptive
+- **Description**: Explain what and why
+- **Tests**: Include tests for new features
+- **Documentation**: Update relevant docs
+- **Commits**: Clean commit history
+
+### PR Template
+
+```markdown
+## Description
+Brief description of changes
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+- [ ] Unit tests added/updated
+- [ ] E2E tests added/updated
+- [ ] Manual testing performed
+
+## Checklist
+- [ ] Code follows style guidelines
+- [ ] Self-review completed
+- [ ] Documentation updated
+- [ ] No new warnings
+- [ ] Tests pass locally
+```
+
+## Code Review Process
+
+1. Maintainers review your PR
+2. Address any feedback
+3. Once approved, maintainers merge to `devel`
+4. Changes are included in next release
+
+## Release Process
+
+Releases follow [Semantic Versioning](https://semver.org/):
+
+- **Major**: Breaking changes (e.g., 2.0.0 → 3.0.0)
+- **Minor**: New features (e.g., 2.3.0 → 2.4.0)
+- **Patch**: Bug fixes (e.g., 2.3.1 → 2.3.2)
+
+## Reporting Issues
+
+### Bug Reports
+
+Include:
+- FWCloud-API version
+- Operating system and version
+- Node.js version
+- Database version
+- Steps to reproduce
+- Expected vs actual behavior
+- Error messages and logs
+
+### Feature Requests
+
+Include:
+- Clear description of the feature
+- Use cases and benefits
+- Potential implementation approach
+- Willingness to contribute
+
+## Community
+
+- **Forum**: https://forum.fwcloud.net
+- **Issues**: GitHub Issues
+- **Discussions**: GitHub Discussions
+
+## Key Dependencies
+
+Main dependencies to be familiar with:
+
+- **Express 5**: Web framework
+- **TypeORM 0.3.28**: ORM for database
+- **Socket.IO 4.8.3**: Real-time communication
+- **Winston 3.19.0**: Logging
+- **Mocha**: Testing framework
+- **Class-validator**: Request validation
+
+## Development Tips
+
+### Watch Mode
+
+Use watch mode during development:
+
+```bash
+npm run watch
+```
+
+This rebuilds automatically when files change.
+
+### Development with UI
+
+To develop with FWCloud-UI:
+
+```bash
+# In fwcloud-api
+npm run dev
+
+# In fwcloud-ui (separate terminal)
+npm start
+```
+
+### Debugging
+
+Use Node.js debugger:
+
+```bash
+node --inspect dist/src/bin/fwcloud
+```
+
+Then attach your debugger (VS Code, Chrome DevTools, etc.).
+
+### Database Inspection
+
+Inspect database during development:
+
+```bash
+mysql -u fwcloud_dev -p fwcloud_dev
+```
+
+## Git Commit Messages
+
+### Format
+
+```
+type: subject
+
+body (optional)
+
+footer (optional)
+```
+
+### Types
+
+- **feat**: New feature
+- **fix**: Bug fix
+- **docs**: Documentation only
+- **style**: Code style changes (formatting)
+- **refactor**: Code refactoring
+- **test**: Adding or updating tests
+- **chore**: Maintenance tasks
+
+### Examples
+
+```
+feat: add WireGuard VPN support
+
+Implements WireGuard VPN management including configuration,
+status monitoring, and policy compilation.
+
+Closes #123
+```
+
+```
+fix: resolve OpenVPN cipher validation issue
+
+Allow cipher algorithm names in both upper and lower case.
+
+Fixes #456
+```
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the GNU AGPL v3 license.
+
+## Questions?
+
+If you have questions about contributing:
+
+1. Check existing documentation
+2. Search GitHub issues
+3. Ask on the forum: https://forum.fwcloud.net
+4. Create a discussion on GitHub
+
+## Thank You!
+
+Your contributions help make FWCloud better for everyone. We appreciate your time and effort!

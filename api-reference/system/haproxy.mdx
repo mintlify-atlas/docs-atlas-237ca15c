@@ -1,0 +1,216 @@
+---
+title: 'HAProxy Service'
+description: 'Manage HAProxy load balancer rules and configuration'
+---
+
+## List HAProxy Rules
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves all HAProxy rules for a firewall.
+
+## Get Grid View
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/grid
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/grid" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieves HAProxy rules in grid format for UI display.
+
+## Get HAProxy Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/:haproxy
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Create HAProxy Rule
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frontend_ip": "0.0.0.0",
+    "frontend_port": 80,
+    "backend_servers": [
+      {"ip": "192.168.1.10", "port": 8080},
+      {"ip": "192.168.1.11", "port": 8080}
+    ],
+    "mode": "http",
+    "balance": "roundrobin",
+    "comment": "HTTP load balancer",
+    "active": true
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `frontend_ip` (string, optional) - Frontend bind IP address
+- `frontend_port` (integer, optional) - Frontend listen port
+- `backend_servers` (array, optional) - Backend server configurations
+- `mode` (string, optional) - Protocol mode: "http" or "tcp"
+- `balance` (string, optional) - Load balancing algorithm: "roundrobin", "leastconn", "source"
+- `comment` (string, optional) - Description
+- `active` (boolean, optional) - Whether rule is enabled
+- `group` (integer, optional) - HAProxy group ID
+
+## Update HAProxy Rule
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/:haproxy
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "balance": "leastconn",
+    "backend_servers": [
+      {"ip": "192.168.1.10", "port": 8080},
+      {"ip": "192.168.1.11", "port": 8080},
+      {"ip": "192.168.1.12", "port": 8080}
+    ]
+  }'
+```
+</CodeGroup>
+
+## Copy Rules
+
+<CodeGroup>
+```bash POST /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/copy
+curl -X POST "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/copy" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": [1, 2],
+    "to": 5,
+    "offset": "below"
+  }'
+```
+</CodeGroup>
+
+**Request Body**
+- `rules` (array, required) - Rule IDs to copy
+- `to` (integer, required) - Target rule ID
+- `offset` (string, required) - Position: "above" or "below"
+
+## Move Rules
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/move
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/move" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rules": [1, 2],
+    "to": 5,
+    "offset": "above"
+  }'
+```
+</CodeGroup>
+
+## Move From
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/moveFrom
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/moveFrom" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromId": 1,
+    "toId": 2
+  }'
+```
+</CodeGroup>
+
+## Bulk Update
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/bulkUpdate?rules[]=1&rules[]=2
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/bulkUpdate?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "active": false
+  }'
+```
+</CodeGroup>
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to update
+
+## Compile HAProxy Configuration
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles all HAProxy rules into haproxy.cfg format.
+
+## Compile Single Rule
+
+<CodeGroup>
+```bash GET /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/:haproxy/compile
+curl -X GET "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/1/compile" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Install HAProxy Configuration
+
+<CodeGroup>
+```bash PUT /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/install
+curl -X PUT "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/install" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Compiles and installs HAProxy configuration to the firewall.
+
+This endpoint:
+1. Compiles all HAProxy rules into haproxy.cfg
+2. Uploads the configuration to `/etc/haproxy/haproxy.cfg`
+3. Validates the configuration
+4. Emits progress events via WebSocket
+
+**Response Events (WebSocket)**
+```json
+{
+  "status": "start",
+  "message": "Installing HAProxy rules"
+}
+```
+
+## Delete HAProxy Rule
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/:haproxy
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+## Bulk Remove
+
+<CodeGroup>
+```bash DELETE /fwclouds/:fwcloud/firewalls/:firewall/system/haproxyRules/bulkRemove?rules[]=1&rules[]=2
+curl -X DELETE "https://api.example.com/fwclouds/1/firewalls/1/system/haproxyRules/bulkRemove?rules[]=1&rules[]=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+**Query Parameters**
+- `rules` (array, required) - Rule IDs to delete

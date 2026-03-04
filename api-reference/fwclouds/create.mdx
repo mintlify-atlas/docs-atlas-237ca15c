@@ -1,0 +1,87 @@
+---
+title: 'Create FWCloud'
+openapi: 'POST /fwclouds'
+---
+
+Creates a new FWCloud instance in the system.
+
+## Authentication
+
+Requires authentication and admin privileges.
+
+## Request Body
+
+<ParamField body="name" type="string" required>
+  The name of the FWCloud instance
+</ParamField>
+
+<ParamField body="image" type="string">
+  Optional image identifier for the FWCloud
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional comment or description for the FWCloud
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="number">
+  The unique identifier of the created FWCloud
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The name of the FWCloud
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  The image identifier
+</ResponseField>
+
+<ResponseField name="comment" type="string">
+  The comment or description
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Timestamp when the FWCloud was created
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  Timestamp when the FWCloud was last updated
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production FWCloud",
+    "image": "fwcloud-prod",
+    "comment": "Production environment firewall cloud"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "name": "Production FWCloud",
+  "image": "fwcloud-prod",
+  "comment": "Production environment firewall cloud",
+  "created_at": "2024-03-04T10:00:00.000Z",
+  "updated_at": "2024-03-04T10:00:00.000Z",
+  "locked": false
+}
+```
+
+## Errors
+
+<ResponseField name="403" type="error">
+  Forbidden - FWCloud limit reached or insufficient permissions
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Bad Request - Invalid input parameters
+</ResponseField>

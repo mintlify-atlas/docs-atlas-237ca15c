@@ -1,0 +1,193 @@
+---
+title: Certificate Endpoints
+description: Manage certificates issued by certificate authorities
+---
+
+## Overview
+
+Certificate endpoints allow you to manage X.509 certificates issued by CAs. These certificates are used for VPN client and server authentication.
+
+## Update Certificate
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="ca" type="number" required>
+  Certificate Authority ID that issued this certificate
+</ParamField>
+
+<ParamField path="crt" type="number" required>
+  Certificate ID
+</ParamField>
+
+<ParamField body="cn" type="string">
+  Common Name (certificate subject)
+</ParamField>
+
+<ParamField body="days" type="number">
+  Validity period in days (default: 1095)
+</ParamField>
+
+<ParamField body="type" type="number">
+  Certificate type:
+  - `1`: Server certificate
+  - `2`: Client certificate
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional comment
+</ParamField>
+
+### Request
+
+```bash
+curl -X PUT https://api.fwcloud.local/fwclouds/1/cas/1/crts/5 \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "cn": "vpn-client-001",
+    "days": 730,
+    "type": 2,
+    "comment": "Client certificate for user John"
+  }'
+```
+
+### Response
+
+<ResponseField name="id" type="number">
+  Certificate ID
+</ResponseField>
+
+<ResponseField name="ca" type="number">
+  Parent CA ID
+</ResponseField>
+
+<ResponseField name="cn" type="string">
+  Common Name
+</ResponseField>
+
+<ResponseField name="days" type="number">
+  Validity period in days
+</ResponseField>
+
+<ResponseField name="type" type="number">
+  Certificate type (1 = server, 2 = client)
+</ResponseField>
+
+<ResponseField name="serial" type="string">
+  Certificate serial number (hex)
+</ResponseField>
+
+<ResponseField name="status" type="number">
+  Status: 1 = valid, 2 = revoked, 3 = expired
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Issuance timestamp
+</ResponseField>
+
+<ResponseField name="expires_at" type="string">
+  Expiration timestamp
+</ResponseField>
+
+```json
+{
+  "id": 5,
+  "ca": 1,
+  "cn": "vpn-client-001",
+  "days": 730,
+  "type": 2,
+  "serial": "4A3F2E1D",
+  "status": 1,
+  "created_at": "2024-03-04T10:00:00.000Z",
+  "expires_at": "2026-03-04T10:00:00.000Z"
+}
+```
+
+## Certificate Types
+
+<CardGroup cols={2}>
+  <Card title="Server Certificates" icon="server">
+    Used for VPN server authentication. Includes Server Authentication extended key usage.
+  </Card>
+  <Card title="Client Certificates" icon="user">
+    Used for VPN client authentication. Includes Client Authentication extended key usage.
+  </Card>
+</CardGroup>
+
+## Certificate Files
+
+For each certificate, the following files are generated:
+
+```
+fwcloud-data/
+  pki/
+    ca-{ca_id}/
+      certs/
+        cert-{id}.crt      # Public certificate
+        cert-{id}.key      # Private key (encrypted)
+        cert-{id}.req      # Certificate request
+```
+
+## Certificate Status
+
+<Tabs>
+  <Tab title="Valid">
+    Certificate is active and valid. Status code: `1`
+  </Tab>
+  <Tab title="Revoked">
+    Certificate has been revoked and should not be used. Status code: `2`
+  </Tab>
+  <Tab title="Expired">
+    Certificate has passed its expiration date. Status code: `3`
+  </Tab>
+</Tabs>
+
+## Revoking Certificates
+
+To revoke a certificate, update its status to `2` (revoked). This will add it to the Certificate Revocation List (CRL).
+
+```bash
+curl -X PUT https://api.fwcloud.local/fwclouds/1/cas/1/crts/5 \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{"status": 2}'
+```
+
+<Warning>
+  Revoking a certificate is permanent and cannot be undone. The certificate will be immediately invalid for all VPN connections.
+</Warning>
+
+## Error Responses
+
+<Accordion title="404 Not Found">
+  The specified certificate does not exist.
+  
+  ```json
+  {
+    "message": "Certificate not found"
+  }
+  ```
+</Accordion>
+
+<Accordion title="400 Bad Request">
+  Invalid certificate parameters (e.g., CN already exists).
+  
+  ```json
+  {
+    "message": "Certificate with this CN already exists"
+  }
+  ```
+</Accordion>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Certificate Authority" icon="building" href="/api-reference/certificates/ca">
+    Manage the CA that issues certificates
+  </Card>
+  <Card title="OpenVPN Configuration" icon="shield" href="/api-reference/vpn/openvpn/manage">
+    Use certificates in OpenVPN configurations
+  </Card>
+</CardGroup>

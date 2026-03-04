@@ -1,0 +1,414 @@
+---
+title: Two-Factor Authentication
+description: Manage two-factor authentication (2FA) for user accounts
+---
+
+## Overview
+
+FWCloud API supports time-based one-time password (TOTP) two-factor authentication using authenticator apps like Google Authenticator, Authy, or 1Password.
+
+## Get 2FA Setup Status
+
+`GET /profile/tfa/setup`
+
+Retrieves the current 2FA setup status and QR code for enrollment.
+
+### Response
+
+<ResponseField name="enabled" type="boolean">
+  Whether 2FA is currently enabled
+</ResponseField>
+
+<ResponseField name="secret" type="string">
+  TOTP secret (only returned if not yet enabled)
+</ResponseField>
+
+<ResponseField name="qr_code" type="string">
+  Data URI of QR code image for scanning
+</ResponseField>
+
+<ResponseField name="manual_entry" type="string">
+  Secret in text form for manual entry
+</ResponseField>
+
+```json
+{
+  "enabled": false,
+  "secret": "JBSWY3DPEHPK3PXP",
+  "qr_code": "data:image/png;base64,iVBORw0KGgoAAAANS...",
+  "manual_entry": "JBSWY3DPEHPK3PXP"
+}
+```
+
+## Enable 2FA
+
+`POST /profile/tfa/setup`
+
+Enables two-factor authentication after verifying a TOTP code.
+
+### Request Body
+
+<ParamField body="token" type="string" required>
+  6-digit TOTP code from authenticator app
+</ParamField>
+
+<ParamField body="secret" type="string" required>
+  The TOTP secret from GET /profile/tfa/setup
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.local/profile/tfa/setup \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "token": "123456",
+    "secret": "JBSWY3DPEHPK3PXP"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.fwcloud.local/profile/tfa/setup', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Cookie': sessionCookie
+  },
+  body: JSON.stringify({
+    token: '123456',
+    secret: 'JBSWY3DPEHPK3PXP'
+  })
+});
+
+const result = await response.json();
+console.log('2FA enabled:', result);
+```
+
+### Response
+
+<ResponseField name="enabled" type="boolean">
+  Confirmation that 2FA is now enabled
+</ResponseField>
+
+<ResponseField name="backup_codes" type="array">
+  One-time backup codes for account recovery
+</ResponseField>
+
+```json
+{
+  "enabled": true,
+  "backup_codes": [
+    "1A2B-3C4D",
+    "5E6F-7G8H",
+    "9I0J-1K2L",
+    "3M4N-5O6P",
+    "7Q8R-9S0T"
+  ]
+}
+```
+
+<Warning>
+  **Save backup codes immediately!**
+  
+  Store these codes in a secure location. They are shown only once and can be used if you lose access to your authenticator app.
+</Warning>
+
+## Verify 2FA Code
+
+`POST /profile/tfa/verify`
+
+Verifies a 2FA code during login. This endpoint is called automatically by the authentication flow.
+
+### Request Body
+
+<ParamField body="token" type="string" required>
+  6-digit TOTP code or backup code
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.local/profile/tfa/verify \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{"token": "123456"}'
+```
+
+### Response
+
+<ResponseField name="valid" type="boolean">
+  Whether the code was valid
+</ResponseField>
+
+<ResponseField name="authenticated" type="boolean">
+  Whether authentication is complete
+</ResponseField>
+
+```json
+{
+  "valid": true,
+  "authenticated": true
+}
+```
+
+## Disable 2FA
+
+`DELETE /profile/tfa/setup`
+
+Disables two-factor authentication for the current user.
+
+### Request Body
+
+<ParamField body="password" type="string" required>
+  Current account password for confirmation
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X DELETE https://api.fwcloud.local/profile/tfa/setup \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{"password": "your-password"}'
+```
+
+### Response
+
+```json
+{
+  "enabled": false,
+  "message": "Two-factor authentication disabled"
+}
+```
+
+## 2FA Setup Workflow
+
+<Steps>
+  <Step title="Get QR Code">
+    Call `GET /profile/tfa/setup` to retrieve the QR code.
+    
+    ```javascript
+    const setupRes = await fetch('https://api.fwcloud.local/profile/tfa/setup');
+    const setup = await setupRes.json();
+    ```
+  </Step>
+  
+  <Step title="Scan QR Code">
+    Display the QR code image to the user:
+    
+    ```html
+    <img src="${setup.qr_code}" alt="2FA QR Code" />
+    <p>Or enter manually: ${setup.manual_entry}</p>
+    ```
+    
+    User scans with authenticator app (Google Authenticator, Authy, 1Password, etc.)
+  </Step>
+  
+  <Step title="Verify Token">
+    User enters the 6-digit code from their app:
+    
+    ```javascript
+    const enableRes = await fetch('https://api.fwcloud.local/profile/tfa/setup', {
+      method: 'POST',
+      body: JSON.stringify({
+        token: userEnteredToken,
+        secret: setup.secret
+      })
+    });
+    
+    const result = await enableRes.json();
+    ```
+  </Step>
+  
+  <Step title="Save Backup Codes">
+    Display backup codes to user and require confirmation:
+    
+    ```javascript
+    alert('Save these backup codes:\n' + result.backup_codes.join('\n'));
+    ```
+  </Step>
+</Steps>
+
+## Login with 2FA
+
+When 2FA is enabled, the login flow changes:
+
+<Steps>
+  <Step title="Initial Login">
+    User provides username and password as normal.
+    
+    ```bash
+    curl -X POST https://api.fwcloud.local/auth/login \
+      -d '{"username": "admin", "password": "pass"}'
+    ```
+  </Step>
+  
+  <Step title="2FA Prompt">
+    API returns `tfa_required: true` response:
+    
+    ```json
+    {
+      "authenticated": false,
+      "tfa_required": true,
+      "message": "Enter 2FA code"
+    }
+    ```
+  </Step>
+  
+  <Step title="Submit 2FA Code">
+    User enters code from authenticator app:
+    
+    ```bash
+    curl -X POST https://api.fwcloud.local/profile/tfa/verify \
+      -d '{"token": "123456"}'
+    ```
+  </Step>
+  
+  <Step title="Authentication Complete">
+    Upon successful verification, session is fully authenticated:
+    
+    ```json
+    {
+      "valid": true,
+      "authenticated": true
+    }
+    ```
+  </Step>
+</Steps>
+
+## Backup Codes
+
+Backup codes are one-time use codes for account recovery:
+
+- **Format:** `XXXX-XXXX` (8 characters, alphanumeric)
+- **Quantity:** 5 codes generated
+- **Usage:** Each code can be used once
+- **Regeneration:** New codes generated if all used
+
+**Using a backup code:**
+
+```bash
+# Use backup code just like a TOTP token
+curl -X POST https://api.fwcloud.local/profile/tfa/verify \
+  -d '{"token": "1A2B-3C4D"}'
+```
+
+<Warning>
+  After a backup code is used, it becomes invalid. If you use all backup codes, new ones will be automatically generated.
+</Warning>
+
+## Supported Authenticator Apps
+
+<CardGroup cols={2}>
+  <Card title="Google Authenticator" icon="mobile">
+    iOS and Android
+    
+    Free, simple TOTP app from Google
+  </Card>
+  
+  <Card title="Authy" icon="shield">
+    iOS, Android, Desktop
+    
+    Multi-device sync, cloud backup
+  </Card>
+  
+  <Card title="1Password" icon="key">
+    All platforms
+    
+    Password manager with TOTP support
+  </Card>
+  
+  <Card title="Microsoft Authenticator" icon="microsoft">
+    iOS and Android
+    
+    Free app with push notifications
+  </Card>
+</CardGroup>
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Secure Backup Codes">
+    Store backup codes in a secure location:
+    - Password manager (encrypted)
+    - Printed and stored in safe
+    - NOT in plain text on device
+  </Step>
+  
+  <Step title="Multiple Devices">
+    Consider using an authenticator app with cloud sync (Authy, 1Password) so you can access codes from multiple devices.
+  </Step>
+  
+  <Step title="Time Synchronization">
+    Ensure device time is accurate. TOTP codes are time-based and require clock synchronization.
+  </Step>
+  
+  <Step title="Account Recovery Plan">
+    Have a recovery plan:
+    - Save backup codes securely
+    - Document 2FA setup process
+    - Know how to contact admin for account recovery
+  </Step>
+</Steps>
+
+## Error Responses
+
+<Accordion title="400 Bad Request - Invalid Token">
+  The TOTP code is incorrect or expired.
+  
+  ```json
+  {
+    "message": "Invalid 2FA token"
+  }
+  ```
+  
+  **Solutions:**
+  - Verify device time is correct
+  - Wait for new code (codes refresh every 30 seconds)
+  - Try a backup code if available
+</Accordion>
+
+<Accordion title="409 Conflict - Already Enabled">
+  2FA is already enabled for this account.
+  
+  ```json
+  {
+    "message": "2FA already enabled"
+  }
+  ```
+  
+  Disable first before re-enabling.
+</Accordion>
+
+<Accordion title="401 Unauthorized - Wrong Password">
+  When disabling 2FA, password is incorrect.
+  
+  ```json
+  {
+    "message": "Invalid password"
+  }
+  ```
+</Accordion>
+
+## Account Recovery
+
+If you lose access to your authenticator app:
+
+1. **Use a backup code** to log in
+2. **Disable and re-enable 2FA** to get new QR code
+3. **Scan new QR code** with your authenticator app
+4. **Save new backup codes**
+
+If you've lost both your authenticator app and backup codes, contact your FWCloud administrator for account recovery.
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Authentication Guide" icon="lock" href="/authentication">
+    Complete authentication documentation
+  </Card>
+  <Card title="Security Best Practices" icon="shield-halved" href="/guides/setup">
+    Secure your FWCloud installation
+  </Card>
+</CardGroup>

@@ -1,0 +1,217 @@
+---
+title: 'Firewall Communication'
+description: 'Test connectivity and retrieve information from firewall agents'
+---
+
+Firewall communication endpoints allow you to test connectivity and retrieve system information from firewalls using either SSH or Agent communication methods.
+
+## Ping Firewall
+
+`POST /fwclouds/:fwcloud/firewalls/communication/ping`
+
+Tests connectivity to a firewall by sending a ping request.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+### Request Body
+
+<ParamField body="communication" type="string" required>
+  Communication method: `ssh` or `agent`
+</ParamField>
+
+<ParamField body="host" type="string" required>
+  Hostname or IP address of the firewall
+</ParamField>
+
+<ParamField body="port" type="number" required>
+  Port number for the communication
+</ParamField>
+
+<ParamField body="username" type="string">
+  SSH username (required for SSH communication, PGP encrypted)
+</ParamField>
+
+<ParamField body="password" type="string">
+  SSH password (required for SSH communication, PGP encrypted)
+</ParamField>
+
+<ParamField body="protocol" type="string">
+  Protocol for agent communication: `http` or `https` (required for agent communication)
+</ParamField>
+
+<ParamField body="apikey" type="string">
+  API key for agent authentication (required for agent communication, PGP encrypted)
+</ParamField>
+
+### Response
+
+<ResponseField name="status" type="string">
+  Status of the ping: `OK` if successful
+</ResponseField>
+
+### Example Request (SSH)
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/communication/ping \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "communication": "ssh",
+    "host": "192.168.1.100",
+    "port": 22,
+    "username": "admin",
+    "password": "encrypted_password"
+  }'
+```
+
+### Example Request (Agent)
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/communication/ping \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "communication": "agent",
+    "host": "192.168.1.100",
+    "port": 33033,
+    "protocol": "https",
+    "apikey": "encrypted_api_key"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "status": "OK"
+}
+```
+
+---
+
+## Get Firewall Information
+
+`POST /fwclouds/:fwcloud/firewalls/communication/info`
+
+Retrieves detailed system information from a firewall agent.
+
+### Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  The unique identifier of the FWCloud
+</ParamField>
+
+### Request Body
+
+<ParamField body="communication" type="string" required>
+  Communication method: `ssh` or `agent`
+</ParamField>
+
+<ParamField body="host" type="string" required>
+  Hostname or IP address of the firewall
+</ParamField>
+
+<ParamField body="port" type="number" required>
+  Port number for the communication
+</ParamField>
+
+<ParamField body="username" type="string">
+  SSH username (required for SSH communication, PGP encrypted)
+</ParamField>
+
+<ParamField body="password" type="string">
+  SSH password (required for SSH communication, PGP encrypted)
+</ParamField>
+
+<ParamField body="protocol" type="string">
+  Protocol for agent communication: `http` or `https` (required for agent communication)
+</ParamField>
+
+<ParamField body="apikey" type="string">
+  API key for agent authentication (required for agent communication, PGP encrypted)
+</ParamField>
+
+### Response
+
+<ResponseField name="version" type="string">
+  FWCloud agent version
+</ResponseField>
+
+<ResponseField name="platform" type="string">
+  Operating system platform
+</ResponseField>
+
+<ResponseField name="hostname" type="string">
+  System hostname
+</ResponseField>
+
+<ResponseField name="plugins" type="object">
+  Installed plugins and their status
+</ResponseField>
+
+### Example Request
+
+```bash cURL
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/communication/info \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "communication": "agent",
+    "host": "192.168.1.100",
+    "port": 33033,
+    "protocol": "https",
+    "apikey": "encrypted_api_key"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "version": "2.1.0",
+  "platform": "linux",
+  "hostname": "firewall-01",
+  "plugins": {
+    "openvpn": {
+      "installed": true,
+      "version": "2.5.7"
+    },
+    "wireguard": {
+      "installed": true,
+      "version": "1.0.20210914"
+    },
+    "haproxy": {
+      "installed": false
+    }
+  }
+}
+```
+
+## Errors
+
+<ResponseField name="404" type="error">
+  Not Found - FWCloud does not exist
+</ResponseField>
+
+<ResponseField name="403" type="error">
+  Forbidden - Insufficient permissions
+</ResponseField>
+
+<ResponseField name="500" type="error">
+  Internal Server Error - Communication failed
+</ResponseField>
+
+<ResponseField name="501" type="error">
+  Not Implemented - Communication method not implemented
+</ResponseField>
+
+## Security Notes
+
+- All sensitive credentials (passwords, API keys) must be PGP encrypted before sending
+- The encryption uses the session PGP key
+- SSH communication requires valid SSH credentials
+- Agent communication requires a valid API key configured on the firewall agent

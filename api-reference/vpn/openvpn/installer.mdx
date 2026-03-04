@@ -1,0 +1,68 @@
+---
+title: "OpenVPN Installer"
+api: "POST /api/fwclouds/{fwcloud}/firewalls/{firewall}/openvpn/{openvpn}/installer"
+description: "Generate and download OpenVPN client installer for Windows"
+---
+
+Generates a Windows executable installer (.exe) for an OpenVPN client configuration. The installer packages the client certificate, configuration files, and connection settings into a single downloadable executable.
+
+## Path Parameters
+
+<ParamField path="fwcloud" type="number" required>
+  FWCloud ID
+</ParamField>
+
+<ParamField path="firewall" type="number" required>
+  Firewall ID
+</ParamField>
+
+<ParamField path="openvpn" type="number" required>
+  OpenVPN client configuration ID
+</ParamField>
+
+## Body Parameters
+
+<ParamField body="connection_name" type="string" required>
+  Name for the VPN connection that will appear in the Windows network settings. Must match the pattern defined by InstallerGenerator.connectionNameRegExp.
+</ParamField>
+
+## Response
+
+<ResponseField name="file" type="binary">
+  Windows executable installer (fwcloud-vpn.exe) that contains:
+  - OpenVPN client configuration
+  - Client certificate and private key
+  - CA certificate
+  - Connection settings
+</ResponseField>
+
+<ResponseExample>
+```bash cURL
+curl -X POST \
+  https://api.fwcloud.net/api/fwclouds/1/firewalls/5/openvpn/10/installer \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "connection_name": "MyCompany VPN"
+  }' \
+  --output fwcloud-vpn.exe
+```
+</ResponseExample>
+
+## Notes
+
+- The endpoint requires that the OpenVPN configuration is a client configuration (must have a parent server)
+- The client must be associated with a valid certificate
+- The installer file is temporarily stored and automatically deleted after 30 seconds
+- Returns HTTP 201 on success with the installer file as a download
+- Returns HTTP 404 if the OpenVPN client or server configuration is not found
+
+## Installation Workflow
+
+1. Request generates temporary installer at unique path
+2. Installer packages client configuration and certificates
+3. File is downloaded to the client
+4. Temporary directory is cleaned up after 30 seconds
+
+## Authorization
+
+Requires OpenVPNPolicy.installer authorization for the specified OpenVPN client configuration.

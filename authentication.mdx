@@ -1,0 +1,524 @@
+---
+title: Authentication
+description: Learn how authentication works in the FWCloud API
+---
+
+## Overview
+
+FWCloud API uses **session-based authentication** with server-side session storage. Unlike token-based APIs (JWT), sessions are stored as files on the server and authenticated via cookies.
+
+## Authentication Flow
+
+<Steps>
+  <Step title="Client sends credentials">
+    POST request to `/user/login` with customer ID, username, and password
+  </Step>
+  <Step title="Server validates credentials">
+    Password is hashed with bcrypt and compared against stored hash
+  </Step>
+  <Step title="Session created">
+    Server creates session file and returns session cookie
+  </Step>
+  <Step title="Client includes cookie">
+    All subsequent requests must include the session cookie
+  </Step>
+  <Step title="Server validates session">
+    Middleware checks session validity and keepalive timestamp
+  </Step>
+  <Step title="Session destroyed on logout">
+    Client calls `/user/logout` to destroy session
+  </Step>
+</Steps>
+
+## Login Endpoint
+
+### Request
+
+```http
+POST /user/login
+Content-Type: application/json
+
+{
+  "customer": 1,
+  "username": "fwcadmin",
+  "password": "fwcadmin"
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `customer` | number | Yes | Customer ID (tenant identifier) |
+| `username` | string | Yes | User's username |
+| `password` | string | Yes | User's password (plain text, encrypted in transit via HTTPS) |
+| `publicKey` | string | No | Client's PGP public key for encrypted communication |
+
+<Warning>
+  The password is hashed as `bcrypt.hash(customer + username + password)` on the server. This means the same password for different customers/usernames produces different hashes.
+</Warning>
+
+### Response (Success)
+
+```json
+{
+  "user": 1,
+  "role": 1,
+  "publicKey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n..."
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user` | number | Authenticated user's ID |
+| `role` | number | User's role (1 = Admin, 2 = Manager) |
+| `publicKey` | string | Server's PGP public key for encrypted communication |
+
+### Response (Error)
+
+```json
+{
+  "fwcErr": 1001,
+  "msg": "Bad username or password"
+}
+```
+
+HTTP Status: `401 Unauthorized`
+
+## Session Management
+
+### Session Structure
+
+When you login, the server creates a session with the following data:
+
+```javascript
+req.session = {
+  customer_id: 1,           // Customer ID
+  user_id: 1,               // User ID
+  username: "fwcadmin",     // Username
+  admin_role: true,         // Is admin?
+  keepalive_ts: 1234567890, // Last activity timestamp
+  remote_addr: "192.168.1.1", // Client IP address
+  pgp: {                    // PGP key pair
+    public: "...",
+    private: "..."
+  },
+  uiPublicKey: "..."        // Client's public key
+}
+```
+
+### Session Storage
+
+Sessions are stored as files on the server (via `session-file-store`):
+
+- **Location**: Configured via `session.files_path`
+- **Format**: JSON files named by session ID
+- **Cleanup**: Sessions are automatically cleaned up on expiration
+
+<Info>
+  Session files contain sensitive information including PGP private keys. Ensure the session directory has proper file permissions.
+</Info>
+
+### Session Cookie
+
+The server returns a cookie containing the session ID:
+
+```
+Set-Cookie: connect.sid=s%3A...; Path=/; HttpOnly
+```
+
+- **Name**: Configurable via `session.name`
+- **HttpOnly**: `false` (can be accessed by JavaScript)
+- **Secure**: Enabled when `session.force_HTTPS` is true
+- **Path**: `/`
+
+## Authorization Middleware
+
+Every request (except `/user/login`) goes through the Authorization middleware:
+
+### Session Validation
+
+The middleware (`Authorization.ts:32-96`) checks:
+
+<Steps>
+  <Step title="Session exists">
+    Required fields: `keepalive_ts`, `customer_id`, `user_id`, `username`, `pgp`
+  </Step>
+  <Step title="Session not expired">
+    Checks if `(Date.now() - keepalive_ts) > keepalive_ms`
+  </Step>
+  <Step title="User exists">
+    Queries database to verify user still exists
+  </Step>
+  <Step title="Update keepalive">
+    Sets `keepalive_ts = Date.now()` to extend session
+  </Step>
+</Steps>
+
+### Session Errors
+
+| Error | Code | Description |
+|-------|------|-------------|
+| SESSION_BAD | 9002 | Session missing required fields or user not found |
+| SESSION_EXPIRED | 9003 | Session exceeded keepalive timeout |
+
+### Code Reference
+
+From `src/middleware/Authorization.ts:46-67`:
+
+```typescript
+// Session must contain some mandatory data.
+if (!req.session.keepalive_ts || !req.session.customer_id || 
+    !req.session.user_id || !req.session.username || !req.session.pgp) {
+  req.session.destroy(err => {});
+  throw fwcError.SESSION_BAD;
+}
+
+// Verify that this session has had recent activity.
+const elapsed_ms = Date.now() - req.session.keepalive_ts;
+const keepalive_ms = this.app.config.get('session').keepalive_ms;
+if (elapsed_ms > keepalive_ms) {
+  await User.disableLockFwcloudAccess(req);
+  req.session.destroy(err => {});
+  throw fwcError.SESSION_EXPIRED;
+}
+req.session.keepalive_ts = Date.now(); // Update keepalive timestamp.
+```
+
+## Session Keepalive
+
+To prevent session expiration, use the ping endpoint:
+
+### Request
+
+```bash
+curl -k -X PUT https://127.0.0.1:3131/ping \
+  -b cookies.txt
+```
+
+### Response
+
+```json
+{
+  "result": "pong"
+}
+```
+
+This updates the `keepalive_ts` timestamp, extending your session.
+
+<Note>
+  The keepalive timeout is configurable via `session.keepalive_ms` (default varies by installation).
+</Note>
+
+## Logout Endpoint
+
+### Request
+
+```bash
+curl -k -X POST https://127.0.0.1:3131/user/logout \
+  -b cookies.txt
+```
+
+### What Happens
+
+1. Unlocks all FWCloud instances locked by this session
+2. Destroys the session file on the server
+3. Returns HTTP 204 No Content
+
+### Code Reference
+
+From `src/routes/user/user.js:153-157`:
+
+```javascript
+router.post('/logout', async (req, res) => {
+  await FwCloud.unlockAllLockedFwclouds(req.sessionID);
+  req.session.destroy(err => {});
+  res.status(204).end();
+});
+```
+
+## Two-Factor Authentication (2FA)
+
+### Setup
+
+FWCloud API supports TOTP-based 2FA using the Speakeasy library.
+
+### Login with 2FA
+
+If 2FA is enabled for your account, include the TOTP token in the `x-tfa` header:
+
+```bash
+curl -k -X POST https://127.0.0.1:3131/user/login \
+  -H "Content-Type: application/json" \
+  -H "x-tfa: 123456" \
+  -c cookies.txt \
+  -d '{
+    "customer": 1,
+    "username": "fwcadmin",
+    "password": "fwcadmin"
+  }'
+```
+
+### 2FA Response
+
+With valid 2FA token:
+
+```json
+{
+  "user": 1,
+  "role": 1,
+  "publicKey": "-----BEGIN PGP PUBLIC KEY BLOCK-----...",
+  "tfa": "SECRET_BASE32"
+}
+```
+
+### 2FA Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/profile/tfa/setup` | GET | Get 2FA setup QR code |
+| `/profile/tfa/setup` | POST | Enable 2FA |
+| `/profile/tfa/setup` | DELETE | Disable 2FA |
+| `/profile/tfa/verify` | POST | Verify 2FA token |
+
+## PGP Encryption
+
+### Key Generation
+
+On login, the server generates a PGP key pair for encrypted communication:
+
+```javascript
+const pgp = new PgpHelper();
+await pgp.init(config.get('session').pgp_rsa_bits);
+req.session.pgp = {
+  public: pgp.publicKey,
+  private: pgp.privateKey
+};
+```
+
+### Usage
+
+The PGP keys are used to encrypt sensitive data in API responses. The client should:
+
+1. Store the server's public key from login response
+2. Optionally provide its own public key during login
+3. Use the keys to encrypt/decrypt sensitive payloads
+
+## Password Hashing
+
+Passwords are hashed using bcrypt with the following pattern:
+
+```javascript
+const salt = bcrypt.genSaltSync(10);
+const hash = bcrypt.hashSync(customer + username + password, salt);
+```
+
+<Warning>
+  The customer ID and username are concatenated with the password before hashing. This means:
+  - Same password for different customers = different hashes
+  - Changing username requires password reset
+  - Customer ID must remain constant
+</Warning>
+
+## User Roles
+
+Two roles are supported:
+
+| Role | Value | Permissions |
+|------|-------|-------------|
+| Admin | 1 | Full access to all resources and admin endpoints |
+| Manager | 2 | Access to assigned FWClouds only |
+
+### Role Gates
+
+Some endpoints require admin role:
+
+```typescript
+router.gates([isAdmin], (router) => {
+  // Admin-only routes
+  router.get('/version', VersionController, 'show');
+  router.prefix('/backups', ...);
+});
+```
+
+## IP Address Restrictions
+
+Users can have IP address restrictions via the `allowed_from` field:
+
+```json
+{
+  "allowed_from": "10.99.4.10,192.168.1.1"
+}
+```
+
+The server tracks the client IP via:
+
+```javascript
+const xff = req.headers['x-forwarded-for'];
+const first_ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim();
+req.session.remote_addr = first_ip || req.socket.remoteAddress || '';
+```
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use HTTPS" icon="lock">
+    Always use HTTPS in production. The API supports HTTPS by default.
+  </Card>
+  <Card title="Secure Session Storage" icon="folder-lock">
+    Ensure session files have proper permissions (600 or 700).
+  </Card>
+  <Card title="Configure Session Timeout" icon="clock">
+    Set appropriate `keepalive_ms` based on your security requirements.
+  </Card>
+  <Card title="Enable 2FA" icon="shield-halved">
+    Require 2FA for admin accounts and sensitive operations.
+  </Card>
+  <Card title="Restrict IPs" icon="ban">
+    Use `allowed_from` to restrict access to known IP addresses.
+  </Card>
+  <Card title="Monitor Sessions" icon="eye">
+    Regularly audit active sessions and clean up old session files.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Session Expired
+
+**Problem**: Receiving SESSION_EXPIRED error
+
+**Solutions**:
+- Increase `session.keepalive_ms` configuration
+- Implement periodic ping requests to keep session alive
+- Re-authenticate when receiving 401 errors
+
+### Invalid Session
+
+**Problem**: Receiving SESSION_BAD error
+
+**Solutions**:
+- Ensure cookies are being sent with requests
+- Check that session cookie name matches server configuration
+- Verify cookie is not expired or corrupted
+
+### Authentication Failed
+
+**Problem**: Login returns 401 Unauthorized
+
+**Solutions**:
+- Verify customer ID is correct
+- Check username and password are correct
+- Ensure user account is enabled (`enabled = 1`)
+- If 2FA is enabled, provide valid token in `x-tfa` header
+
+## Code Examples
+
+### Complete Session Management (Python)
+
+```python
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
+import ssl
+
+class FWCloudAPI:
+    def __init__(self, base_url, verify_ssl=False):
+        self.base_url = base_url
+        self.session = requests.Session()
+        if not verify_ssl:
+            self.session.verify = False
+    
+    def login(self, customer, username, password):
+        url = f"{self.base_url}/user/login"
+        payload = {
+            "customer": customer,
+            "username": username,
+            "password": password
+        }
+        response = self.session.post(url, json=payload)
+        response.raise_for_status()
+        return response.json()
+    
+    def ping(self):
+        url = f"{self.base_url}/ping"
+        response = self.session.put(url)
+        response.raise_for_status()
+        return response.json()
+    
+    def logout(self):
+        url = f"{self.base_url}/user/logout"
+        response = self.session.post(url)
+        response.raise_for_status()
+
+# Usage
+api = FWCloudAPI('https://127.0.0.1:3131')
+result = api.login(1, 'fwcadmin', 'fwcadmin')
+print(f"Logged in as user {result['user']} with role {result['role']}")
+
+# Keep session alive
+api.ping()
+
+# Logout
+api.logout()
+```
+
+### Complete Session Management (Node.js)
+
+```javascript
+const https = require('https');
+const axios = require('axios');
+
+class FWCloudAPI {
+  constructor(baseURL) {
+    this.client = axios.create({
+      baseURL,
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      withCredentials: true
+    });
+  }
+
+  async login(customer, username, password) {
+    const response = await this.client.post('/user/login', {
+      customer,
+      username,
+      password
+    });
+    return response.data;
+  }
+
+  async ping() {
+    const response = await this.client.put('/ping');
+    return response.data;
+  }
+
+  async logout() {
+    await this.client.post('/user/logout');
+  }
+}
+
+// Usage
+(async () => {
+  const api = new FWCloudAPI('https://127.0.0.1:3131');
+  
+  const result = await api.login(1, 'fwcadmin', 'fwcadmin');
+  console.log(`Logged in as user ${result.user} with role ${result.role}`);
+  
+  // Keep session alive
+  await api.ping();
+  
+  // Logout
+  await api.logout();
+})();
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Try making your first authenticated API call
+  </Card>
+  <Card title="API Reference" icon="book">
+    Explore all available endpoints
+  </Card>
+</CardGroup>

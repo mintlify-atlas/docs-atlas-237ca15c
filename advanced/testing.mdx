@@ -1,0 +1,618 @@
+---
+title: Testing Guide
+description: Comprehensive guide to testing FWCloud-API
+---
+
+## Overview
+
+FWCloud-API uses a comprehensive testing strategy with unit tests, integration tests, and end-to-end (E2E) tests. The project uses Mocha as the test framework, Chai for assertions, and Sinon for mocking.
+
+## Testing Stack
+
+### Core Testing Libraries
+
+- **Mocha 11.7.5**: Test framework
+- **Chai 6.2.2**: Assertion library
+- **Chai-as-promised 8.0.2**: Promise assertions
+- **Chai-json-schema-ajv 5.2.4**: JSON schema validation
+- **Sinon 21.0.1**: Test spies, stubs, and mocks
+- **Supertest 7.2.2**: HTTP assertion library
+
+## Running Tests
+
+### Run All Tests
+
+```bash
+npm test
+```
+
+This command:
+1. Builds the project: `npm run build`
+2. Sets environment to test: `NODE_ENV=test`
+3. Runs all test files: `dist/tests/**/*spec.js`
+4. Uses 99999ms timeout for long-running tests
+5. Forces exit after completion
+
+### Run Specific Tests
+
+```bash
+# Run a specific test file
+NODE_ENV=test node --no-warnings node_modules/mocha/bin/_mocha --timeout 99999 --exit --colors dist/tests/Unit/models/firewall/firewall.model.spec.js
+
+# Run tests in a specific directory
+NODE_ENV=test node --no-warnings node_modules/mocha/bin/_mocha --timeout 99999 --exit --colors "dist/tests/Unit/routing/**/*.spec.js"
+
+# Run E2E tests only
+NODE_ENV=test node --no-warnings node_modules/mocha/bin/_mocha --timeout 99999 --exit --colors "dist/tests/e2e/**/*.spec.js"
+```
+
+## Test Structure
+
+Tests are organized in the `tests/` directory:
+
+```
+tests/
+├── Unit/                           # Unit tests
+│   ├── models/                     # Model tests
+│   │   ├── firewall/
+│   │   ├── policy/
+│   │   ├── vpn/
+│   │   └── ...
+│   ├── routing/                    # Routing tests
+│   │   ├── route/
+│   │   ├── routing-rule/
+│   │   └── routing-table/
+│   ├── system/                     # System service tests
+│   │   ├── dhcp/
+│   │   ├── haproxy/
+│   │   └── keepalived/
+│   ├── utils/                      # Utility tests
+│   └── ...
+└── e2e/                            # End-to-end tests
+    ├── api/                        # API endpoint tests
+    │   ├── firewall/
+    │   ├── policy/
+    │   ├── routing/
+    │   ├── system/
+    │   ├── vpn/
+    │   └── ...
+    └── middlewares/                # Middleware tests
+        ├── cors.middleware.e2e.spec.ts
+        ├── input-validation.middleware.e2e.spec.ts
+        └── ...
+```
+
+## Writing Unit Tests
+
+### Basic Test Structure
+
+```typescript
+import { expect } from 'chai';
+import { describe, it, beforeEach, afterEach } from 'mocha';
+import sinon from 'sinon';
+
+describe('ComponentName', () => {
+  let component: ComponentType;
+  let sandbox: sinon.SinonSandbox;
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    component = new ComponentType();
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  describe('methodName', () => {
+    it('should perform expected behavior', () => {
+      const result = component.methodName();
+      expect(result).to.equal(expectedValue);
+    });
+
+    it('should handle edge cases', () => {
+      expect(() => component.methodName(null)).to.throw();
+    });
+  });
+});
+```
+
+### Testing Models
+
+Example from `tests/Unit/models/firewall/firewall.model.spec.ts`:
+
+```typescript
+import { Firewall } from '../../../../src/models/firewall/Firewall';
+import { expect } from 'chai';
+
+describe('Firewall Model', () => {
+  describe('static methods', () => {
+    it('should find firewall by id', async () => {
+      const firewall = await Firewall.findOne({ where: { id: 1 } });
+      expect(firewall).to.exist;
+      expect(firewall.id).to.equal(1);
+    });
+  });
+
+  describe('instance methods', () => {
+    it('should update firewall status', async () => {
+      const firewall = new Firewall();
+      firewall.status = 1;
+      await firewall.save();
+      expect(firewall.status).to.equal(1);
+    });
+  });
+});
+```
+
+### Testing Services
+
+Example from `tests/Unit/routing/route/route.service.spec.ts`:
+
+```typescript
+import { RouteService } from '../../../../src/routing/route/route.service';
+import { expect } from 'chai';
+import sinon from 'sinon';
+
+describe('RouteService', () => {
+  let service: RouteService;
+  let sandbox: sinon.SinonSandbox;
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    service = new RouteService();
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it('should create a route', async () => {
+    const routeData = { /* route data */ };
+    const result = await service.create(routeData);
+    expect(result).to.have.property('id');
+  });
+
+  it('should validate route data', () => {
+    const invalidData = { /* invalid data */ };
+    expect(() => service.validate(invalidData)).to.throw();
+  });
+});
+```
+
+### Testing Repositories
+
+Example from `tests/Unit/routing/routing-rule/routing-rule.repository.spec.ts`:
+
+```typescript
+import { RoutingRuleRepository } from '../../../../src/routing/routing-rule/routing-rule.repository';
+import { expect } from 'chai';
+
+describe('RoutingRuleRepository', () => {
+  let repository: RoutingRuleRepository;
+
+  beforeEach(() => {
+    repository = new RoutingRuleRepository();
+  });
+
+  it('should find rules by firewall id', async () => {
+    const rules = await repository.findByFirewall(1);
+    expect(rules).to.be.an('array');
+  });
+
+  it('should create routing rule', async () => {
+    const ruleData = { /* rule data */ };
+    const rule = await repository.create(ruleData);
+    expect(rule).to.have.property('id');
+  });
+});
+```
+
+## Writing E2E Tests
+
+### API Endpoint Testing
+
+Example from `tests/e2e/api/firewall.e2e.spec.ts`:
+
+```typescript
+import request from 'supertest';
+import { expect } from 'chai';
+import { app } from '../../../src/app';
+
+describe('Firewall API', () => {
+  let authToken: string;
+  let firewallId: number;
+
+  before(async () => {
+    // Login and get auth token
+    const response = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'admin', password: 'admin' });
+    authToken = response.body.token;
+  });
+
+  describe('POST /api/v1/firewall', () => {
+    it('should create a new firewall', async () => {
+      const response = await request(app)
+        .post('/api/v1/firewall')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          name: 'Test Firewall',
+          fwCloudId: 1
+        })
+        .expect(201);
+
+      expect(response.body).to.have.property('id');
+      firewallId = response.body.id;
+    });
+
+    it('should validate required fields', async () => {
+      await request(app)
+        .post('/api/v1/firewall')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({})
+        .expect(400);
+    });
+  });
+
+  describe('GET /api/v1/firewall/:id', () => {
+    it('should retrieve firewall by id', async () => {
+      const response = await request(app)
+        .get(`/api/v1/firewall/${firewallId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).to.have.property('id', firewallId);
+      expect(response.body).to.have.property('name', 'Test Firewall');
+    });
+
+    it('should return 404 for non-existent firewall', async () => {
+      await request(app)
+        .get('/api/v1/firewall/99999')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(404);
+    });
+  });
+});
+```
+
+### Middleware Testing
+
+Example from `tests/e2e/middlewares/cors.middleware.e2e.spec.ts`:
+
+```typescript
+import request from 'supertest';
+import { expect } from 'chai';
+import { app } from '../../../src/app';
+
+describe('CORS Middleware', () => {
+  it('should set CORS headers for allowed origins', async () => {
+    const response = await request(app)
+      .get('/api/v1/version')
+      .set('Origin', 'http://localhost')
+      .expect(200);
+
+    expect(response.headers).to.have.property('access-control-allow-origin');
+  });
+
+  it('should reject requests from disallowed origins', async () => {
+    const response = await request(app)
+      .get('/api/v1/version')
+      .set('Origin', 'http://evil.com')
+      .expect(403);
+  });
+});
+```
+
+## Testing Database Operations
+
+### Test Database Setup
+
+Use a separate test database:
+
+```bash
+# Create test database
+mysql -u root -p -e "CREATE DATABASE fwcloud_test;"
+mysql -u root -p -e "CREATE USER 'fwcloud_test'@'localhost' IDENTIFIED BY 'test_password';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON fwcloud_test.* TO 'fwcloud_test'@'localhost';"
+```
+
+Configure in `config/test.json`:
+
+```json
+{
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "fwcloud_test",
+    "username": "fwcloud_test",
+    "password": "test_password"
+  }
+}
+```
+
+### Test Fixtures
+
+Create test data before tests:
+
+```typescript
+import { getConnection } from 'typeorm';
+import { Firewall } from '../src/models/firewall/Firewall';
+
+before(async () => {
+  const connection = getConnection();
+  
+  // Clean database
+  await connection.synchronize(true);
+  
+  // Create test data
+  const firewall = new Firewall();
+  firewall.name = 'Test Firewall';
+  firewall.fwCloudId = 1;
+  await firewall.save();
+});
+
+after(async () => {
+  // Clean up
+  const connection = getConnection();
+  await connection.dropDatabase();
+});
+```
+
+## Mocking and Stubbing
+
+### Stubbing External Dependencies
+
+```typescript
+import sinon from 'sinon';
+import axios from 'axios';
+
+describe('ExternalService', () => {
+  let sandbox: sinon.SinonSandbox;
+  let axiosStub: sinon.SinonStub;
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    axiosStub = sandbox.stub(axios, 'get');
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it('should call external API', async () => {
+    axiosStub.resolves({ data: { result: 'success' } });
+    
+    const result = await service.fetchData();
+    
+    expect(axiosStub.calledOnce).to.be.true;
+    expect(result).to.deep.equal({ result: 'success' });
+  });
+});
+```
+
+### Mocking Database Queries
+
+```typescript
+import sinon from 'sinon';
+import { Repository } from 'typeorm';
+
+describe('Service with Database', () => {
+  let sandbox: sinon.SinonSandbox;
+  let repositoryStub: sinon.SinonStubbedInstance<Repository<any>>;
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    repositoryStub = sandbox.stub(Repository.prototype);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it('should query database', async () => {
+    repositoryStub.findOne.resolves({ id: 1, name: 'Test' });
+    
+    const result = await service.findById(1);
+    
+    expect(result).to.deep.equal({ id: 1, name: 'Test' });
+    expect(repositoryStub.findOne.calledOnce).to.be.true;
+  });
+});
+```
+
+## Assertion Patterns
+
+### Basic Assertions
+
+```typescript
+// Equality
+expect(value).to.equal(expected);
+expect(value).to.deep.equal({ key: 'value' });
+
+// Existence
+expect(value).to.exist;
+expect(value).to.be.null;
+expect(value).to.be.undefined;
+
+// Types
+expect(value).to.be.a('string');
+expect(value).to.be.an('array');
+expect(value).to.be.an.instanceOf(Class);
+
+// Properties
+expect(object).to.have.property('key');
+expect(object).to.have.property('key', 'value');
+expect(object).to.have.all.keys('key1', 'key2');
+
+// Arrays
+expect(array).to.have.lengthOf(3);
+expect(array).to.include(item);
+expect(array).to.be.empty;
+
+// Booleans
+expect(value).to.be.true;
+expect(value).to.be.false;
+```
+
+### Promise Assertions
+
+```typescript
+import chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+
+chai.use(chaiAsPromised);
+
+// Resolution
+await expect(promise).to.eventually.equal(value);
+await expect(promise).to.eventually.have.property('key');
+
+// Rejection
+await expect(promise).to.be.rejected;
+await expect(promise).to.be.rejectedWith(Error);
+await expect(promise).to.be.rejectedWith('error message');
+```
+
+### JSON Schema Validation
+
+```typescript
+import chai from 'chai';
+import chaiJsonSchema from 'chai-json-schema-ajv';
+
+chai.use(chaiJsonSchema);
+
+const schema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    name: { type: 'string' }
+  },
+  required: ['id', 'name']
+};
+
+expect(response.body).to.be.jsonSchema(schema);
+```
+
+## Test Coverage
+
+While the project doesn't currently use automated coverage tools, aim for:
+
+- **Unit tests**: All services, repositories, and utilities
+- **Integration tests**: Database operations and model interactions
+- **E2E tests**: All API endpoints
+- **Edge cases**: Error handling, validation, and boundary conditions
+
+Recent versions have added "hundreds of new software tests" for:
+- IPTables compiler (version 1.2.0)
+- Routing features (version 1.3.0)
+- NFTables compiler (version 1.3.0)
+
+## Continuous Integration
+
+FWCloud-API uses GitHub Actions for CI:
+
+```yaml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: fwcloud_test
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+      - run: npm install
+      - run: npm test
+```
+
+## Best Practices
+
+### General
+
+- Write tests before fixing bugs (test-driven bug fixing)
+- Keep tests focused and isolated
+- Use descriptive test names
+- Avoid test interdependencies
+- Clean up resources in `afterEach` hooks
+
+### Unit Tests
+
+- Test one thing at a time
+- Mock external dependencies
+- Test edge cases and error conditions
+- Avoid database access in unit tests
+
+### E2E Tests
+
+- Test complete user workflows
+- Use realistic test data
+- Test authentication and authorization
+- Verify HTTP status codes and response structure
+
+### Performance
+
+- Use test database with minimal data
+- Clean up data between tests
+- Use transactions for faster cleanup
+- Run tests in parallel when possible
+
+## Troubleshooting
+
+### Tests Timeout
+
+Increase timeout for slow tests:
+
+```typescript
+it('slow test', async function() {
+  this.timeout(5000); // 5 seconds
+  // ... test code
+});
+```
+
+### Database Connection Issues
+
+- Verify test database exists
+- Check credentials in `config/test.json`
+- Ensure database server is running
+- Use `127.0.0.1` instead of `localhost`
+
+### Async Issues
+
+Always return promises or use async/await:
+
+```typescript
+// ❌ Wrong
+it('test', () => {
+  service.asyncMethod().then(result => {
+    expect(result).to.exist;
+  });
+});
+
+// ✅ Correct
+it('test', async () => {
+  const result = await service.asyncMethod();
+  expect(result).to.exist;
+});
+```
+
+## Next Steps
+
+- [Contributing guidelines](/advanced/contributing)
+- [Database migrations](/advanced/database)
+- [Configuration reference](/advanced/configuration)

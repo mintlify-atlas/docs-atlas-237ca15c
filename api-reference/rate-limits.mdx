@@ -1,0 +1,406 @@
+---
+title: Rate Limits
+description: Learn about FWCloud API rate limiting policies and session management
+---
+
+## Overview
+
+The FWCloud API implements session-based access control and activity monitoring to ensure system stability and security. While traditional rate limiting is not enforced, the API uses session keepalive mechanisms to manage active connections.
+
+<Note>
+The API does not currently implement request-per-second or request-per-minute rate limiting. Access control is primarily managed through session-based authentication and keepalive timeouts.
+</Note>
+
+## Session Management
+
+### Session Keepalive
+
+All authenticated sessions must maintain activity to remain valid. The session keepalive mechanism tracks the time elapsed since the last request.
+
+**How it works:**
+
+1. Each authenticated request updates a `keepalive_ts` timestamp
+2. The server checks elapsed time since last activity
+3. If elapsed time exceeds the keepalive threshold, the session expires
+
+**Configuration:**
+
+The keepalive timeout is configurable via the `session.keepalive_ms` setting:
+
+```json
+{
+  "session": {
+    "keepalive_ms": 3600000  // 1 hour in milliseconds
+  }
+}
+```
+
+### Session Expiration
+
+When a session expires due to inactivity:
+
+1. The session is destroyed on the server
+2. A 400 Bad Request response is returned
+3. User must re-authenticate to continue
+
+**Error Response:**
+
+```json
+{
+  "status": 400,
+  "response": "Bad Request",
+  "message": "Session expired"
+}
+```
+
+## Keepalive Endpoint
+
+To maintain an active session, clients should periodically send keepalive requests.
+
+### Ping Endpoint
+
+```http
+PUT /ping
+```
+
+**Purpose:** Keep the session alive and prevent timeout
+
+**Request Example:**
+
+```bash
+curl -X PUT https://api.fwcloud.net/ping \
+  -H "Cookie: session_id=your_session_cookie" \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+
+```json
+{
+  "status": 200,
+  "response": "OK",
+  "data": "pong"
+}
+```
+
+### Recommended Keepalive Strategy
+
+For long-running client applications:
+
+```javascript
+// Send keepalive request every 5 minutes
+const KEEPALIVE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+setInterval(async () => {
+  try {
+    const response = await fetch('/ping', {
+      method: 'PUT',
+      credentials: 'include',  // Include session cookie
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.status !== 200) {
+      console.warn('Keepalive failed - session may have expired');
+      // Trigger re-authentication flow
+    }
+  } catch (error) {
+    console.error('Keepalive request failed:', error);
+  }
+}, KEEPALIVE_INTERVAL);
+```
+
+## Session Requirements
+
+For a session to remain valid, it must contain:
+
+- `keepalive_ts` - Last activity timestamp
+- `customer_id` - Customer identifier
+- `user_id` - User identifier
+- `username` - Username
+- `pgp` - PGP key information
+
+If any of these fields are missing or invalid, the session is considered corrupt and will be destroyed.
+
+## WebSocket Connections
+
+WebSocket connections also follow session management rules:
+
+1. WebSocket must have an existing session before connecting
+2. Session data is reloaded from store on connection
+3. Session is validated against keepalive requirements
+4. Socket ID is stored in the session for communication
+
+**WebSocket Session Validation:**
+
+```typescript
+// Session must exist and contain required fields
+if (!socket.request.session.keepalive_ts ||
+    !socket.request.session.customer_id ||
+    !socket.request.session.user_id ||
+    !socket.request.session.username ||
+    !socket.request.session.pgp) {
+  // Connection rejected
+}
+```
+
+## Resource Limits
+
+While not traditional rate limits, the API enforces resource limits per user:
+
+### FWCloud Limits
+
+The number of FWClouds a user can create may be limited:
+
+```json
+{
+  "limits": {
+    "fwclouds": 10  // Maximum FWClouds per user (0 = unlimited)
+  }
+}
+```
+
+**When Limit Reached:**
+
+```json
+{
+  "status": 403,
+  "response": "Forbidden",
+  "message": "FWCloud limit reached"
+}
+```
+
+## CORS (Cross-Origin Resource Sharing)
+
+CORS configuration controls which domains can access the API:
+
+**Configuration:**
+
+```bash
+CORS_WHITELIST="http://localhost,https://app.example.com"
+```
+
+Requests from non-whitelisted origins will be blocked by the browser.
+
+## Best Practices
+
+### 1. Implement Automatic Keepalive
+
+For web applications:
+
+```javascript
+class SessionManager {
+  constructor(keepaliveInterval = 300000) { // 5 minutes
+    this.keepaliveInterval = keepaliveInterval;
+    this.keepaliveTimer = null;
+  }
+  
+  startKeepalive() {
+    this.keepaliveTimer = setInterval(() => {
+      this.sendKeepalive();
+    }, this.keepaliveInterval);
+  }
+  
+  stopKeepalive() {
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+  }
+  
+  async sendKeepalive() {
+    try {
+      const response = await fetch('/ping', {
+        method: 'PUT',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        // Handle session expiration
+        this.stopKeepalive();
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Keepalive failed:', error);
+    }
+  }
+}
+
+// Usage
+const sessionManager = new SessionManager();
+sessionManager.startKeepalive();
+```
+
+### 2. Handle Session Expiration
+
+```javascript
+function handleApiError(error) {
+  if (error.status === 400 && error.message.includes('Session')) {
+    // Session expired or invalid
+    localStorage.setItem('redirectAfterLogin', window.location.href);
+    window.location.href = '/login';
+    return;
+  }
+  
+  // Handle other errors
+  console.error('API Error:', error);
+}
+```
+
+### 3. Activity-Based Keepalive
+
+Optimize keepalive requests by only sending them when needed:
+
+```javascript
+class SmartKeepalive {
+  constructor(timeout = 3600000) { // 1 hour
+    this.timeout = timeout;
+    this.lastActivity = Date.now();
+    this.checkInterval = 60000; // Check every minute
+    
+    this.startMonitoring();
+  }
+  
+  recordActivity() {
+    this.lastActivity = Date.now();
+  }
+  
+  startMonitoring() {
+    setInterval(() => {
+      const elapsed = Date.now() - this.lastActivity;
+      const remaining = this.timeout - elapsed;
+      
+      // Send keepalive if within 5 minutes of timeout
+      if (remaining < 300000 && remaining > 0) {
+        this.sendKeepalive();
+      }
+    }, this.checkInterval);
+  }
+  
+  async sendKeepalive() {
+    await fetch('/ping', {
+      method: 'PUT',
+      credentials: 'include'
+    });
+    this.recordActivity();
+  }
+}
+
+// Track user activity
+const keepalive = new SmartKeepalive();
+
+// Record activity on user interactions
+document.addEventListener('click', () => keepalive.recordActivity());
+document.addEventListener('keypress', () => keepalive.recordActivity());
+```
+
+### 4. Graceful Degradation
+
+```javascript
+async function makeApiRequest(url, options) {
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    
+    // Check for session issues
+    if (data.status === 400 || data.status === 401) {
+      // Attempt to refresh session
+      const refreshed = await attemptSessionRefresh();
+      
+      if (refreshed) {
+        // Retry original request
+        return makeApiRequest(url, options);
+      } else {
+        // Redirect to login
+        redirectToLogin();
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Request failed:', error);
+    throw error;
+  }
+}
+```
+
+## Monitoring
+
+### Session Metrics
+
+Monitor these metrics to optimize session management:
+
+- Average session duration
+- Session expiration rate
+- Keepalive request frequency
+- Failed authentication attempts
+
+### Logging
+
+The API logs session-related events:
+
+```
+USER AUTHORIZED (customer_id: 1, user_id: 123, username: admin)
+WebSocket: User connected (ID: abc123, IP: 192.168.1.100, session: sess_xyz)
+WebSocket: User disconnected (ID: abc123, IP: 192.168.1.100, session: sess_xyz)
+```
+
+## Security Considerations
+
+### Session Storage
+
+Sessions are stored server-side with the following security features:
+
+- Secure session cookies (HTTPS only in production)
+- Session secret for cookie signing
+- Session data validation on every request
+- Automatic cleanup of expired sessions
+
+### HTTPS Enforcement
+
+In production, enforce HTTPS for all API requests:
+
+```json
+{
+  "session": {
+    "force_HTTPS": true
+  },
+  "api_server": {
+    "https": true
+  }
+}
+```
+
+## Future Enhancements
+
+Planned rate limiting features:
+
+- Request-per-second limits per user
+- Request-per-minute limits per endpoint
+- Burst allowance for specific operations
+- Rate limit headers in responses
+- Configurable rate limit policies
+
+<Note>
+These features are under consideration for future releases. Current rate limiting relies on session management and resource limits.
+</Note>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api-reference/overview">
+    Learn about the API architecture
+  </Card>
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Understand session-based authentication
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/api-reference/errors">
+    Handle session errors effectively
+  </Card>
+  <Card title="API Endpoints" icon="code" href="/api-reference/fwclouds/create">
+    Explore available endpoints
+  </Card>
+</CardGroup>

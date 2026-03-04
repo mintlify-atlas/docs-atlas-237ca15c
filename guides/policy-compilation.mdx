@@ -1,0 +1,530 @@
+---
+title: Policy Compilation
+description: Guide to compiling and deploying firewall policies for IPTables, NFTables, and VyOS
+---
+
+## Overview
+
+FWCloud API supports three policy compilers that generate firewall rules from your policy configuration:
+
+- **IPTables**: Traditional Linux netfilter (iptables/ip6tables)
+- **NFTables**: Modern Linux packet filtering framework
+- **VyOS**: Network operating system with declarative configuration
+
+Each compiler generates optimized, production-ready firewall scripts.
+
+## Compilation Process
+
+The compilation process transforms policy rules into executable firewall commands:
+
+<Steps>
+  <Step title="Gather policy data">
+    The compiler collects all policy rules, IP objects, interfaces, and VPN configurations for the firewall.
+    
+    ```typescript
+    const rules_data = await PolicyRule.getPolicyData(
+      'compiler',
+      dbConnection,
+      fwcloudId,
+      firewallId,
+      policyType,
+      ruleIds,
+      null
+    );
+    ```
+  </Step>
+
+  <Step title="Select compiler">
+    The compiler type is determined by the firewall's options field:
+    
+    ```typescript
+    const compilerNumber = (options & 0xf000);
+    if (compilerNumber === 0x0000) compiler = 'IPTables';
+    else if (compilerNumber === 0x1000) compiler = 'NFTables';
+    else if (compilerNumber === 0x2000) compiler = 'VyOS';
+    ```
+  </Step>
+
+  <Step title="Compile rules">
+    The selected compiler processes each rule and generates commands:
+    
+    ```typescript
+    const compiled = await PolicyCompiler.compile(
+      compiler,
+      rules_data
+    );
+    ```
+  </Step>
+
+  <Step title="Generate policy script">
+    The compiled rules are written to a shell script in the policy data directory:
+    
+    ```bash
+    /path/to/policy/data/{fwcloud_id}/{firewall_id}/firewall.sh
+    ```
+  </Step>
+
+  <Step title="Update status">
+    The firewall's compilation status and timestamp are updated:
+    
+    ```typescript
+    await Firewall.updateFirewallCompileDate(fwcloudId, firewallId);
+    firewall.status = 2; // Compiled
+    ```
+  </Step>
+</Steps>
+
+## IPTables Compiler
+
+Generates traditional iptables/ip6tables commands for Linux systems.
+
+### Generated Script Structure
+
+```bash
+#!/bin/bash
+
+# Variables
+IPTABLES="/sbin/iptables"
+IP6TABLES="/sbin/ip6tables"
+
+# Flush existing rules
+$IPTABLES -F
+$IPTABLES -X
+$IPTABLES -t nat -F
+$IPTABLES -t nat -X
+
+# Default policies
+$IPTABLES -P INPUT DROP
+$IPTABLES -P FORWARD DROP
+$IPTABLES -P OUTPUT ACCEPT
+
+# Enable stateful filtering
+$IPTABLES -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+$IPTABLES -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Custom rules
+$IPTABLES -A INPUT -i eth0 -s 192.168.1.0/24 -p tcp --dport 22 -j ACCEPT
+$IPTABLES -A FORWARD -i eth0 -o eth1 -s 192.168.1.0/24 -j ACCEPT
+
+# NAT rules
+$IPTABLES -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+```
+
+### Compilation Options
+
+<ParamField path="STATEFUL" type="boolean" default="true">
+  Enable stateful packet filtering with connection tracking
+</ParamField>
+
+<ParamField path="IPv4_FORWARDING" type="boolean" default="false">
+  Enable IPv4 packet forwarding
+</ParamField>
+
+<ParamField path="DEBUG" type="boolean" default="false">
+  Enable shell script debugging (`set -x`)
+</ParamField>
+
+<ParamField path="DOCKER_COMPAT" type="boolean" default="false">
+  Maintain Docker iptables rules compatibility
+</ParamField>
+
+### Example: Compile for IPTables
+
+```bash
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/compile \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>"
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "compiled_at": "2026-03-04T10:30:00Z",
+  "script_path": "/data/policy/1/1/firewall.sh",
+  "rules_count": 42
+}
+```
+
+## NFTables Compiler
+
+Generates modern nftables commands with improved performance and syntax.
+
+### Generated Script Structure
+
+```bash
+#!/bin/bash
+
+# Variables
+NFT="/sbin/nft"
+
+# Flush existing rules
+$NFT flush ruleset
+
+# Create tables
+$NFT add table ip filter
+$NFT add table ip nat
+
+# Create chains
+$NFT add chain ip filter INPUT { type filter hook input priority 0 \; policy drop \; }
+$NFT add chain ip filter FORWARD { type filter hook forward priority 0 \; policy drop \; }
+$NFT add chain ip filter OUTPUT { type filter hook output priority 0 \; policy accept \; }
+
+# Stateful filtering
+$NFT add rule ip filter INPUT ct state established,related counter accept
+$NFT add rule ip filter FORWARD ct state established,related counter accept
+
+# Custom rules
+$NFT add rule ip filter INPUT iifname "eth0" ip saddr 192.168.1.0/24 tcp dport 22 counter accept
+$NFT add rule ip filter FORWARD iifname "eth0" oifname "eth1" ip saddr 192.168.1.0/24 counter accept
+
+# NAT rules
+$NFT add chain ip nat POSTROUTING { type nat hook postrouting priority 100 \; }
+$NFT add rule ip nat POSTROUTING oifname "eth0" counter masquerade
+```
+
+### NFTables Advantages
+
+<CardGroup cols={2}>
+  <Card title="Performance" icon="gauge-high">
+    Better performance with large rulesets through internal optimization
+  </Card>
+  <Card title="Syntax" icon="code">
+    Cleaner, more consistent syntax compared to iptables
+  </Card>
+  <Card title="Atomicity" icon="atom">
+    Rules are applied atomically, preventing partial configurations
+  </Card>
+  <Card title="IPv4/IPv6" icon="network-wired">
+    Unified handling of IPv4 and IPv6 in single ruleset
+  </Card>
+</CardGroup>
+
+### Example: Compile for NFTables
+
+```bash
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/compile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "compiler": "nftables"
+  }'
+```
+
+## VyOS Compiler
+
+Generates VyOS configuration commands using the declarative configuration syntax.
+
+### Generated Script Structure
+
+```bash
+#!/bin/vbash
+source /opt/vyatta/etc/functions/script-template
+
+configure
+
+# Firewall groups
+set firewall group address-group LAN_NET address 192.168.1.0/24
+set firewall group port-group WEB_PORTS port 80
+set firewall group port-group WEB_PORTS port 443
+
+# IPv4 firewall rules
+set firewall ipv4 name WAN_IN default-action drop
+set firewall ipv4 name WAN_IN rule 10 action accept
+set firewall ipv4 name WAN_IN rule 10 state established enable
+set firewall ipv4 name WAN_IN rule 10 state related enable
+
+set firewall ipv4 name WAN_IN rule 20 action accept
+set firewall ipv4 name WAN_IN rule 20 protocol tcp
+set firewall ipv4 name WAN_IN rule 20 destination port 22
+set firewall ipv4 name WAN_IN rule 20 source group address-group LAN_NET
+
+# Apply to interfaces
+set interfaces ethernet eth0 firewall in name WAN_IN
+
+# NAT configuration
+set nat source rule 100 outbound-interface eth0
+set nat source rule 100 source address 192.168.1.0/24
+set nat source rule 100 translation address masquerade
+
+commit
+save
+exit
+```
+
+### VyOS Features
+
+- **Interface Groups**: Group interfaces for easier rule management
+- **Address Groups**: Reusable IP address groups
+- **Port Groups**: Service port collections
+- **Declarative Syntax**: Configuration as code approach
+- **Commit/Rollback**: Safe configuration changes
+
+### Example: Compile for VyOS
+
+```bash
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/compile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "compiler": "vyos"
+  }'
+```
+
+## Dangerous Rules Detection
+
+FWCloud includes built-in protection against potentially dangerous firewall rules that could lock you out.
+
+### Detection Levels
+
+<Tabs>
+  <Tab title="Warning">
+    **PDR_WARNING** (0x0100): Warns about potentially dangerous rules but allows compilation.
+    
+    Detected patterns:
+    - Rules that might affect management access
+    - Overly permissive rules
+    - Rules affecting critical services
+    
+    ```json
+    {
+      "warning": "Rule 15 may affect SSH access",
+      "severity": "warning",
+      "rule_id": 15
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Critical">
+    **PDR_CRITICAL** (0x0200): Blocks compilation of dangerous rules.
+    
+    Detected patterns:
+    - DROP/REJECT all traffic rules
+    - Rules blocking management interfaces
+    - Rules that could cause lockout
+    
+    ```json
+    {
+      "error": "Rule 20 would block all management access",
+      "severity": "critical",
+      "rule_id": 20,
+      "compilation_blocked": true
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Safety Check Process
+
+The compiler performs these checks:
+
+1. **Extract interfaces**: Identify all interfaces used in rules
+2. **Normalize rules**: Remove comments and interface specifications
+3. **Compare patterns**: Check against known dangerous rule patterns
+4. **Evaluate risk**: Determine if rule is warning-level or critical
+
+```typescript
+const safetyLevel = PolicyCompiler.checkRuleSafety(
+  rule,
+  dangerousRules,
+  compiler,
+  checkWarnings,
+  checkCritical
+);
+// 0 = safe, 1 = warning, 2 = critical
+```
+
+## Installing Compiled Policies
+
+After compilation, deploy the policy script to the firewall:
+
+<Steps>
+  <Step title="Upload script">
+    The policy script is uploaded via SSH or Agent:
+    
+    ```bash
+    scp /data/policy/1/1/firewall.sh admin@firewall:/tmp/
+    ```
+  </Step>
+
+  <Step title="Install script">
+    Run the installation command:
+    
+    ```bash
+    ssh admin@firewall "sudo bash /tmp/firewall.sh install"
+    ```
+    
+    This copies the script to the system location:
+    - Linux: `/etc/fwcloud/firewall.sh`
+    - VyOS: `/config/scripts/post-config.d/firewall.sh`
+  </Step>
+
+  <Step title="Apply rules">
+    Load the firewall policy:
+    
+    ```bash
+    ssh admin@firewall "sudo bash /etc/fwcloud/firewall.sh start"
+    ```
+  </Step>
+
+  <Step title="Update status">
+    The API updates the installation timestamp:
+    
+    ```typescript
+    await Firewall.updateFirewallInstallDate(fwcloudId, firewallId);
+    firewall.installed_at = new Date();
+    ```
+  </Step>
+</Steps>
+
+### Installation via API
+
+```bash
+curl -X POST https://api.fwcloud.net/fwclouds/1/firewalls/1/install \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "sshuser": "admin",
+    "sshpass": "password"
+  }'
+```
+
+## Troubleshooting
+
+### Compilation Fails
+
+**Check policy data**:
+```bash
+curl https://api.fwcloud.net/fwclouds/1/firewalls/1/policy/rules \
+  -H "Authorization: Bearer <token>"
+```
+
+**Review compilation logs**:
+```bash
+tail -f /data/policy/1/1/compile.log
+```
+
+**Common issues**:
+- Missing IP object definitions
+- Invalid interface references
+- Circular dependencies in rules
+- Syntax errors in custom options
+
+### Installation Fails
+
+**Test SSH connectivity**:
+```bash
+ssh -p 22 admin@firewall "echo Connection OK"
+```
+
+**Check file permissions**:
+```bash
+ssh admin@firewall "ls -la /etc/fwcloud/"
+```
+
+**Verify sudo access**:
+```bash
+ssh admin@firewall "sudo -l"
+```
+
+### Rules Not Applied
+
+**Verify script execution**:
+```bash
+ssh admin@firewall "sudo bash -x /etc/fwcloud/firewall.sh start"
+```
+
+**Check active rules**:
+- IPTables: `iptables -L -n -v`
+- NFTables: `nft list ruleset`
+- VyOS: `show firewall`
+
+**Review system logs**:
+```bash
+ssh admin@firewall "journalctl -u iptables -n 100"
+```
+
+## Advanced Topics
+
+### Custom Compilation Options
+
+Extend the compiler with custom rule processing:
+
+```typescript
+const customCompiler = new IPTablesCompiler({
+  customChains: ['CUSTOM_INPUT', 'CUSTOM_FORWARD'],
+  additionalModules: ['geoip', 'recent'],
+  preprocessor: (rule) => {
+    // Custom rule transformation
+    return modifiedRule;
+  }
+});
+```
+
+### Cluster Compilation
+
+When compiling for clusters, rules are generated for each node:
+
+```bash
+if [ "$HOSTNAME" = "fw-master" ]; then
+  $IPTABLES -A INPUT -p vrrp -j ACCEPT
+fi
+```
+
+### Hook Scripts
+
+Add custom scripts that run before/after policy installation:
+
+```bash
+# Pre-installation hook
+/etc/fwcloud/hooks/pre-install.sh
+
+# Apply firewall rules
+...
+
+# Post-installation hook
+/etc/fwcloud/hooks/post-install.sh
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Testing">
+    - Always test in non-production first
+    - Use debug mode for troubleshooting
+    - Keep backup of working configurations
+    - Verify connectivity after installation
+    - Enable dangerous rule detection
+  </Accordion>
+
+  <Accordion title="Performance">
+    - Group similar rules together
+    - Use stateful filtering for efficiency
+    - Optimize rule order (most frequent first)
+    - Use IP groups for multiple addresses
+    - Enable NFTables for large rulesets
+  </Accordion>
+
+  <Accordion title="Maintenance">
+    - Document rule purposes
+    - Use meaningful rule comments
+    - Regular cleanup of unused rules
+    - Monitor compilation times
+    - Version control policy scripts
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="VPN Configuration" icon="network-wired" href="/guides/vpn-configuration">
+    Integrate VPN rules into policies
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/compilation">
+    Complete compilation API docs
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Common compilation issues
+  </Card>
+  <Card title="Firewall Management" icon="shield" href="/guides/firewall-management">
+    Manage firewall configurations
+  </Card>
+</CardGroup>

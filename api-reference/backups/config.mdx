@@ -1,0 +1,326 @@
+---
+title: Backup Configuration
+description: Configure automated backup scheduling and retention policies
+---
+
+## Get Backup Configuration
+
+`GET /backups/config`
+
+Retrieves the current backup configuration including schedule and retention settings.
+
+### Response
+
+<ResponseField name="enabled" type="boolean">
+  Whether automated backups are enabled
+</ResponseField>
+
+<ResponseField name="schedule" type="string">
+  Cron expression for backup schedule (e.g., `0 2 * * *` for daily at 2 AM)
+</ResponseField>
+
+<ResponseField name="retention" type="object">
+  Retention policy configuration
+</ResponseField>
+
+<ResponseField name="retention.type" type="string">
+  Retention type: `copies` or `age`
+</ResponseField>
+
+<ResponseField name="retention.value" type="number">
+  Number of backups to keep (copies) or days to retain (age)
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  Backup storage directory path
+</ResponseField>
+
+```json
+{
+  "enabled": true,
+  "schedule": "0 2 * * *",
+  "retention": {
+    "type": "copies",
+    "value": 7
+  },
+  "path": "/opt/fwcloud-api/backups"
+}
+```
+
+## Update Backup Configuration
+
+`PUT /backups/config`
+
+Updates the backup configuration. Changes take effect immediately.
+
+### Request Body
+
+<ParamField body="enabled" type="boolean">
+  Enable or disable automated backups
+</ParamField>
+
+<ParamField body="schedule" type="string">
+  Cron expression for backup schedule
+  
+  Common schedules:
+  - `0 2 * * *` - Daily at 2:00 AM
+  - `0 */6 * * *` - Every 6 hours
+  - `0 0 * * 0` - Weekly on Sunday
+  - `0 3 1 * *` - Monthly on the 1st at 3:00 AM
+</ParamField>
+
+<ParamField body="retention" type="object">
+  Retention policy configuration
+</ParamField>
+
+<ParamField body="retention.type" type="string">
+  - `copies`: Keep a fixed number of backups
+  - `age`: Keep backups for a number of days
+</ParamField>
+
+<ParamField body="retention.value" type="number">
+  Number of backups (if type=copies) or days (if type=age)
+</ParamField>
+
+### Example Request
+
+```bash cURL
+curl -X PUT https://api.fwcloud.local/backups/config \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention": {
+      "type": "copies",
+      "value": 14
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.fwcloud.local/backups/config', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'Cookie': sessionCookie
+  },
+  body: JSON.stringify({
+    enabled: true,
+    schedule: '0 2 * * *',  // Daily at 2 AM
+    retention: {
+      type: 'copies',
+      value: 14  // Keep 14 most recent backups
+    }
+  })
+});
+
+const config = await response.json();
+console.log('Backup config updated:', config);
+```
+
+### Response
+
+Returns the updated configuration in the same format as GET.
+
+## Retention Strategies
+
+<Tabs>
+  <Tab title="Copy-based Retention">
+    Keeps a fixed number of the most recent backups.
+    
+    ```json
+    {
+      "retention": {
+        "type": "copies",
+        "value": 7
+      }
+    }
+    ```
+    
+    **Use when:**
+    - You want predictable storage usage
+    - Backup frequency is consistent
+    - You need a specific number of restore points
+    
+    **Example:** Keep last 7 daily backups (1 week of history)
+  </Tab>
+  
+  <Tab title="Age-based Retention">
+    Keeps all backups created within the specified number of days.
+    
+    ```json
+    {
+      "retention": {
+        "type": "age",
+        "value": 30
+      }
+    }
+    ```
+    
+    **Use when:**
+    - You want time-based retention (regulatory compliance)
+    - Backup frequency varies
+    - You need backups from specific dates
+    
+    **Example:** Keep all backups from the last 30 days
+  </Tab>
+</Tabs>
+
+## Cron Schedule Examples
+
+<CardGroup cols={2}>
+  <Card title="Daily Backups" icon="calendar-day">
+    `0 2 * * *`
+    
+    Runs at 2:00 AM every day. Good for most production environments.
+  </Card>
+  
+  <Card title="Frequent Backups" icon="clock">
+    `0 */4 * * *`
+    
+    Runs every 4 hours. Use for critical environments with frequent changes.
+  </Card>
+  
+  <Card title="Weekly Backups" icon="calendar-week">
+    `0 3 * * 0`
+    
+    Runs Sunday at 3:00 AM. Suitable for stable environments.
+  </Card>
+  
+  <Card title="Business Hours" icon="briefcase">
+    `0 9-17 * * 1-5`
+    
+    Runs hourly during business hours (9 AM - 5 PM, Mon-Fri).
+  </Card>
+</CardGroup>
+
+## Backup Rotation Example
+
+With this configuration:
+
+```json
+{
+  "enabled": true,
+  "schedule": "0 2 * * *",
+  "retention": {
+    "type": "copies",
+    "value": 7
+  }
+}
+```
+
+Backup rotation works as follows:
+
+```
+Day 1: backup-20240301-020000.sql.gz (kept)
+Day 2: backup-20240302-020000.sql.gz (kept)
+Day 3: backup-20240303-020000.sql.gz (kept)
+Day 4: backup-20240304-020000.sql.gz (kept)
+Day 5: backup-20240305-020000.sql.gz (kept)
+Day 6: backup-20240306-020000.sql.gz (kept)
+Day 7: backup-20240307-020000.sql.gz (kept)
+Day 8: backup-20240308-020000.sql.gz (kept)
+       backup-20240301-020000.sql.gz (deleted - oldest)
+```
+
+## Storage Planning
+
+<Info>
+  **Typical backup sizes:**
+  - Small deployment (1-10 firewalls): 2-10 MB
+  - Medium deployment (10-50 firewalls): 10-30 MB
+  - Large deployment (50+ firewalls): 30-100 MB
+  
+  Plan for ~2x the expected size for compressed backups.
+</Info>
+
+**Example storage calculation:**
+
+```
+Average backup size: 15 MB
+Retention: 30 copies
+Total storage needed: 15 MB × 30 = 450 MB
+Recommended allocation: 1 GB (with headroom)
+```
+
+## Monitoring Backups
+
+Check backup health regularly:
+
+```bash
+# List recent backups
+curl https://api.fwcloud.local/backups
+
+# Check disk usage
+du -sh /opt/fwcloud-api/backups
+
+# Verify backup integrity
+gzip -t /opt/fwcloud-api/backups/backup-*.sql.gz
+```
+
+## Error Responses
+
+<Accordion title="400 Bad Request">
+  Invalid cron expression or retention configuration.
+  
+  ```json
+  {
+    "message": "Invalid cron schedule",
+    "details": "Invalid cron expression: '0 25 * * *'"
+  }
+  ```
+</Accordion>
+
+<Accordion title="403 Forbidden">
+  Only admin users can modify backup configuration.
+  
+  ```json
+  {
+    "message": "Admin access required"
+  }
+  ```
+</Accordion>
+
+## Best Practices
+
+<Steps>
+  <Step title="Choose Appropriate Schedule">
+    Balance backup frequency with system load:
+    - High-change environments: Every 4-6 hours
+    - Normal environments: Daily
+    - Stable environments: Weekly
+  </Step>
+  
+  <Step title="Set Reasonable Retention">
+    - Daily backups: Keep 7-14 copies
+    - Hourly backups: Keep 24-48 copies
+    - Weekly backups: Keep 4-8 copies
+  </Step>
+  
+  <Step title="Schedule During Off-Peak Hours">
+    Run backups when API load is lowest (typically 2-4 AM).
+  </Step>
+  
+  <Step title="Monitor Disk Space">
+    Set up alerts when backup directory reaches 80% capacity.
+  </Step>
+  
+  <Step title="Test Restoration">
+    Regularly test backup restoration in a staging environment.
+  </Step>
+</Steps>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Create Backup" icon="floppy-disk" href="/api-reference/backups/create">
+    Manually trigger a backup
+  </Card>
+  <Card title="Restore Backup" icon="clock-rotate-left" href="/api-reference/backups/restore">
+    Restore from a backup
+  </Card>
+  <Card title="Backup Guide" icon="book" href="/guides/backups">
+    Complete backup and restore guide
+  </Card>
+</CardGroup>
